@@ -9,6 +9,7 @@ dotenv.config();
 // Import routes
 const facilitiesRoutes = require("./routes/facilities");
 const campsiteRoutes = require("./routes/campsites");
+const reservationsRouter = require("./db/reservations"); // Import the reservations router
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,6 +26,7 @@ app.use(cors());
 // Use routes
 app.use("/api", facilitiesRoutes);
 app.use("/api", campsiteRoutes);
+app.use("/reservations", reservationsRouter); // Mount reservations endpoints
 
 // Default route to check if the server is running
 app.get("/", (req, res) => {
