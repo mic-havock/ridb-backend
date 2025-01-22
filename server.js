@@ -26,7 +26,7 @@ app.use(cors());
 // Use routes
 app.use("/api", facilitiesRoutes);
 app.use("/api", campsiteRoutes);
-app.use("/reservations", reservationsRouter); // Mount reservations endpoints
+app.use("/api/reservations", reservationsRouter); // Mount reservations endpoints
 
 // Default route to check if the server is running
 app.get("/", (req, res) => {
