@@ -11,6 +11,13 @@ const router = express.Router();
 const RIDB_BASE_URL = process.env.RIDB_BASE_URL;
 const RIDB_API_KEY = process.env.RIDB_API_KEY;
 
+// Checks campsite availability
+async function checkCampsiteAvailability(campsiteId) {
+  // Add your logic for checking availability here (e.g., querying a database)
+  const isReservable = true; // Example: Replace with actual logic
+  return { campsiteId, reservable: isReservable };
+}
+
 /**
  * Fetch all campsites under a specific facility
  * Endpoint: GET /api/facilities/:facilityId/campsites
@@ -115,4 +122,8 @@ router.get("/campsites/availability/:campsiteId", async (req, res) => {
   }
 });
 
-module.exports = router;
+//module.exports = { router, checkCampsiteAvailability };
+module.exports = {
+  router,
+  checkCampsiteAvailability,
+};
