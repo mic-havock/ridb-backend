@@ -11,11 +11,16 @@ const transporter = nodemailer.createTransport({
 });
 
 // Function to send an email notification
-const sendEmailNotification = async (campsiteId, message) => {
+const sendEmailNotification = async (
+  campsiteId,
+  subject,
+  message,
+  recipientEmail
+) => {
   const mailOptions = {
     from: process.env.EMAIL_USER, // Sender address
-    to: process.env.NOTIFICATION_EMAIL, // Recipient email address
-    subject: `Campsite ${campsiteId} Availability Alert!`,
+    to: recipientEmail, // Recipient email address
+    subject: subject,
     text: message, // Email text body
   };
 
