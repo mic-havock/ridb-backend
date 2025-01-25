@@ -1,5 +1,7 @@
+require("dotenv").config(); // Load environment variables
 const sqlite3 = require("better-sqlite3"); // Use better-sqlite3 for improved performance
 const { checkCampsiteAvailability } = require("../routes/campsites"); // Import availability check function
+const { sendEmailNotification } = require("../notifications/emails"); // Import the sendEmailNotification function
 
 // Path to your database
 const db = sqlite3("./reservations.db");
@@ -27,11 +29,35 @@ const monitorReservations = async () => {
             row.reservation_start_date,
             row.reservation_end_date
           );
+          console.log("Availability:", availability);
           //Todo: increment attempts_made
-          if (availability.reservable) {
+          if (availability.isReservable) {
             console.log(
               `Alert: Campsite ${row.campsite_id} is now reservable!`
             );
+
+            // Send email notification
+            let subject = process.env.EMAIL_SUCCESS_TEMPLATE_SUBJECT;
+
+            // Replace placeholders with actual values
+            subject = subject.replace("{campsite_id}", row.campsite_id);
+
+            // Get the message template from the .env file
+            let message = process.env.EMAIL_SUCCESS_TEMPLATE_BODY;
+
+            // Replace placeholders with actual values
+            message = message
+              .replace("{campsite_id}", row.campsite_id)
+              .replace("{start_date}", row.reservation_start_date)
+              .replace("{end_date}", row.reservation_end_date);
+
+            await sendEmailNotification(
+              row.campsite_id,
+              subject,
+              message,
+              row.email_address
+            );
+
             // Update database to stop monitoring
             db.prepare(
               "UPDATE reservations SET monitoring_active = 0 WHERE id = ?"
