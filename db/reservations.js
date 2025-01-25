@@ -3,7 +3,7 @@ const router = express.Router();
 const Database = require("better-sqlite3");
 
 // Open the database
-const db = new Database("./db/reservations.db", { verbose: console.log });
+const db = new Database("reservations.db", { verbose: console.log });
 
 // Create a new reservation
 router.post("/", (req, res) => {
