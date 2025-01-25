@@ -12,10 +12,42 @@ const RIDB_BASE_URL = process.env.RIDB_BASE_URL;
 const RIDB_API_KEY = process.env.RIDB_API_KEY;
 
 // Checks campsite availability
-async function checkCampsiteAvailability(campsiteId) {
-  // Add your logic for checking availability here (e.g., querying a database)
-  const isReservable = true; // Example: Replace with actual logic
-  return { campsiteId, reservable: isReservable };
+async function checkCampsiteAvailability(campsiteId, startDate, endDate) {
+  console.log("Checking availability for campsite:", campsiteId);
+  try {
+    // Use fetchCampsiteAvailability instead of axios.get
+    const response = await fetchCampsiteAvailability(campsiteId);
+    const availabilityData = response.availability.availabilities;
+    //console.log("Availability data:", availabilityData);
+    const startDateObj = new Date(startDate);
+    const endDateObj = endDate ? new Date(endDate) : startDateObj;
+    //console.log("Start Date:", startDateObj);
+    //console.log("End Date:", endDateObj);
+    let isReservable = true;
+
+    // Loop through the date range to check availabilities
+    for (
+      let date = new Date(startDateObj);
+      date <= endDateObj;
+      date.setDate(date.getDate() + 1)
+    ) {
+      const formattedDate = date.toISOString().split("T")[0] + "T00:00:00Z";
+      console.log("Checking availability for date:", formattedDate);
+      if (availabilityData[formattedDate] !== "Open") {
+        console.log("Availability data:", availabilityData[formattedDate]);
+        isReservable = false;
+        break;
+      }
+    }
+    console.log("Campsite is reservable:", isReservable);
+    return {
+      campsiteId,
+      isReservable,
+    };
+  } catch (error) {
+    console.error("Error checking campsite availability:", error);
+    throw new Error("Failed to check availability. Please try again later.");
+  }
 }
 
 /**
@@ -97,25 +129,35 @@ router.get("/campsites/:campgroundId/availability", async (req, res) => {
   }
 });
 
+/**
+ * Function to fetch campsite availability for a specific campsite.
+ * @param {string} campsiteId - The ID of the campsite to check availability.
+ * @returns {Promise<object>} - The availability data for the campsite.
+ * @throws {Error} - Throws an error if the API call fails.
+ */
+async function fetchCampsiteAvailability(campsiteId) {
+  const url = `https://www.recreation.gov/api/camps/availability/campsite/${campsiteId}/all`;
+
+  try {
+    const response = await axios.get(url);
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Error fetching campsite availability:",
+      error.response?.data || error.message
+    );
+    throw new Error("Failed to fetch campsite availability");
+  }
+}
+
 // Endpoint to check availability for a specific campsite
-// Example URL: /api/campsites/availability/:campsiteId
 router.get("/campsites/availability/:campsiteId", async (req, res) => {
   const { campsiteId } = req.params;
 
   try {
-    // Construct the URL for the specific campsite availability endpoint
-    const url = `https://www.recreation.gov/api/camps/availability/campsite/${campsiteId}/all`;
-
-    // Make the API call to check campsite availability
-    const response = await axios.get(url);
-
-    // Return the availability data for the specific campsite
-    res.json(response.data);
+    const availabilityData = await fetchCampsiteAvailability(campsiteId);
+    res.json(availabilityData);
   } catch (error) {
-    console.error(
-      "Error checking specific campsite availability:",
-      error.response?.data || error.message
-    );
     res
       .status(500)
       .json({ message: "Error checking specific campsite availability" });
