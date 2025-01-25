@@ -35,6 +35,7 @@ async function checkCampsiteAvailability(campsiteId, startDate, endDate) {
       console.log("Checking availability for date:", formattedDate);
       if (availabilityData[formattedDate] !== "Open") {
         console.log("Availability data:", availabilityData[formattedDate]);
+        console.log("Campsite is not reservable on date:", formattedDate);
         isReservable = false;
         break;
       }
