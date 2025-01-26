@@ -8,7 +8,8 @@ dotenv.config();
 
 // Import routes
 const facilitiesRouter = require("./routes/facilities");
-const { router: campsitesRouter } = require("./routes/campsites"); // Import only the router
+const { router: campsitesRouter } = require("./routes/campsites");
+const locationRouter = require("./routes/location");
 const reservationsRouter = require("./db/reservations");
 
 const app = express();
@@ -17,15 +18,13 @@ const PORT = process.env.PORT || 3000;
 // Middleware for JSON parsing
 app.use(express.json());
 
-// Start the cron job
-//scheduleCronJob();
-
 // Enable CORS & allow all origins
 app.use(cors());
 
 // Use routes
 app.use("/api", facilitiesRouter);
 app.use("/api", campsitesRouter);
+app.use("/api", locationRouter);
 app.use("/api/reservations", reservationsRouter); // Mount reservations endpoints
 
 // Default route to check if the server is running
@@ -50,4 +49,4 @@ app.listen(PORT, () => {
 });
 
 // Start the reservation monitoring process
-startReservationMonitor();
+//startReservationMonitor();
