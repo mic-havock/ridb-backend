@@ -9,7 +9,6 @@ const RIDB_API_KEY = process.env.RIDB_API_KEY;
 
 // Endpoint: Get Facility Address by Facility ID
 router.get("/facilities/:facilityId/addresses", async (req, res) => {
-  console.log("Fetching facility address...");
   const { facilityId } = req.params;
 
   try {
