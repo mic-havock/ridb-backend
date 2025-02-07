@@ -2,6 +2,7 @@ require("dotenv").config(); // Load environment variables
 const sqlite3 = require("better-sqlite3"); // Use better-sqlite3 for improved performance
 const { checkCampsiteAvailability } = require("../routes/campsites"); // Import availability check function
 const { sendEmailNotification } = require("../notifications/emails"); // Import the sendEmailNotification function
+const emailTemplates = require("../notifications/emailTemplates.js");
 
 // Path to your database
 const db = sqlite3("./reservations.db");
@@ -29,23 +30,23 @@ const monitorReservations = async () => {
             row.reservation_start_date,
             row.reservation_end_date
           );
-          console.log("Availability:", availability);
+          console.log(
+            `Availability check result for campsite ${row.campsite_id}:`,
+            availability
+          );
           //Todo: increment attempts_made
           if (availability.isReservable) {
             console.log(
               `Alert: Campsite ${row.campsite_id} is now reservable!`
             );
 
-            // Send email notification
-            let subject = process.env.EMAIL_SUCCESS_TEMPLATE_SUBJECT;
+            // Get templates from the templates file instead of env
+            let subject = emailTemplates.success.subject;
+            let message = emailTemplates.success.body;
 
             // Replace placeholders with actual values
             subject = subject.replace("{campsite_id}", row.campsite_id);
 
-            // Get the message template from the .env file
-            let message = process.env.EMAIL_SUCCESS_TEMPLATE_BODY;
-
-            // Replace placeholders with actual values
             message = message
               .replace("{campsite_id}", row.campsite_id)
               .replace("{start_date}", row.reservation_start_date)
@@ -63,20 +64,34 @@ const monitorReservations = async () => {
               "UPDATE reservations SET monitoring_active = 0 WHERE id = ?"
               //Todo: send alert and set success_sent to true
             ).run(row.id);
+
+            console.log(`Campsite availability alert`, {
+              campsiteId: row.campsite_id,
+              name: row.name,
+              startDate: row.reservation_start_date,
+              endDate: row.reservation_end_date,
+              emailAddress: row.email_address,
+              monitoringAttempts: row.attempts_made,
+              url: `https://www.recreation.gov/camping/campsites/${row.campsite_id}`,
+            });
           }
         } catch (error) {
-          console.error(
-            `Error checking availability for campsite ${row.id}:`,
-            error.message
-          );
+          console.log(`Error checking availability for campsite ${row.id}:`, {
+            error: error.message,
+            campsiteId: row.campsite_id,
+            startDate: row.reservation_start_date,
+            endDate: row.reservation_end_date,
+          });
         }
       })
     );
 
-    console.log("Monitoring cycle complete.");
+    console.log("Monitoring cycle complete", {
+      processedReservations: rows.length,
+    });
     return results;
   } catch (error) {
-    console.error("Error during reservation monitoring:", error.message);
+    console.log("Error during reservation monitoring:", error.message);
   }
 };
 

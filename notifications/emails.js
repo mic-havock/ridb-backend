@@ -26,12 +26,18 @@ const sendEmailNotification = async (
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`Email notification sent for campsite ${campsiteId}`);
+    console.log(`Email notification sent successfully`, {
+      campsiteId,
+      recipient: recipientEmail,
+      subject,
+    });
   } catch (error) {
-    console.error(
-      `Error sending email for campsite ${campsiteId}:`,
-      error.message
-    );
+    console.log(`Failed to send email notification`, {
+      error: error.message,
+      campsiteId,
+      recipient: recipientEmail,
+      subject,
+    });
   }
 };
 
