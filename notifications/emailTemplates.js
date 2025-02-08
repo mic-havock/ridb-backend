@@ -15,7 +15,11 @@ Book now at: https://www.recreation.gov/camping/campsites/{campsite_id}
 
 Don't wait - available campsites can be booked quickly!
 
-Happy Camping! 🏕️`,
+Happy Camping! 🏕️
+
+---
+To stop receiving these alerts, click here:
+{base_url}/api/disable-monitoring/{reservation_id}`,
   },
 };
 

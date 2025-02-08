@@ -59,4 +59,4 @@ app.listen(PORT, () => {
 });
 
 // Start the reservation monitoring process
-//startReservationMonitor();
+startReservationMonitor();
