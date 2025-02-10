@@ -1,7 +1,7 @@
 require("dotenv").config(); // Load environment variables
 const sqlite3 = require("better-sqlite3"); // Use better-sqlite3 for improved performance
-const { checkCampsiteAvailability } = require("../routes/campsites"); // Import availability check function
-const { sendEmailNotification } = require("../notifications/emails"); // Import the sendEmailNotification function
+const { checkCampsiteAvailability } = require("../routes/campsites.js"); // Import availability check function
+const { sendEmailNotification } = require("../notifications/emails.js"); // Import the sendEmailNotification function
 const emailTemplates = require("../notifications/emailTemplates.js");
 
 // Path to your database
@@ -66,9 +66,11 @@ const monitorReservations = async () => {
             let message = emailTemplates.success.body;
 
             // Replace placeholders with actual values
-            subject = subject.replace("{campsite_id}", row.campsite_id);
+            subject = subject.replace("{campsite_name}", row.campsite_name);
 
             message = message
+              .replace("{campsite_name}", row.campsite_name)
+              .replace("campsite_number", row.campsite_number)
               .replace("{campsite_id}", row.campsite_id)
               .replace("{start_date}", row.reservation_start_date)
               .replace("{end_date}", row.reservation_end_date)
@@ -76,7 +78,11 @@ const monitorReservations = async () => {
                 "{base_url}",
                 process.env.BASE_URL || "http://localhost:3000"
               )
-              .replace("{reservation_id}", row.id);
+              .replace("{reservation_id}", row.id)
+              .replace(
+                "{email_address}",
+                encodeURIComponent(row.email_address)
+              );
 
             await sendEmailNotification(
               row.campsite_id,
@@ -85,7 +91,7 @@ const monitorReservations = async () => {
               row.email_address
             );
 
-            // Update database to stop monitoring and increment success_sent counter
+            // Increment success_sent counter
             db.prepare(
               "UPDATE reservations SET success_sent = success_sent + 1 WHERE id = ?"
             ).run(row.id);
@@ -93,6 +99,7 @@ const monitorReservations = async () => {
             console.log(`Campsite availability alert`, {
               campsiteId: row.campsite_id,
               name: row.name,
+              campsiteName: row.campsite_name,
               startDate: row.reservation_start_date,
               endDate: row.reservation_end_date,
               emailAddress: row.email_address,
@@ -100,6 +107,10 @@ const monitorReservations = async () => {
               url: `https://www.recreation.gov/camping/campsites/${row.campsite_id}`,
             });
           }
+          //Incrememt attempts made
+          db.prepare(
+            "UPDATE reservations SET attempts_made = attempts_made + 1 WHERE id = ?"
+          ).run(row.id);
         } catch (error) {
           console.log(`Error checking availability for campsite ${row.id}:`, {
             error: error.message,

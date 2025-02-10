@@ -7,9 +7,9 @@ try {
   // Prepare the insert statement
   const insertStmt = db.prepare(`
     INSERT INTO reservations (
-      name, email_address, campsite_id, reservation_start_date, reservation_end_date,
+      name, email_address, campsite_id, campsite_name, reservation_start_date, reservation_end_date,
       monitoring_active, attempts_made, success_sent
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   // Insert a row with boolean values converted to integers
@@ -17,6 +17,7 @@ try {
     "John Doe", // name
     "johndoe@example.com", // email_address
     "CAMP123", // campsite_id
+    "Sunny Valley Campsite", // campsite_name
     "2025-06-01", // reservation_start_date
     "2025-06-07", // reservation_end_date
     1, // monitoring_active (true -> 1)

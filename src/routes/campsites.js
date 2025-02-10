@@ -33,7 +33,7 @@ async function checkCampsiteAvailability(campsiteId, startDate, endDate) {
     ) {
       const formattedDate = date.toISOString().split("T")[0] + "T00:00:00Z";
       console.log("Checking availability for date:", formattedDate);
-      if (availabilityData[formattedDate] !== "Open") {
+      if (availabilityData[formattedDate] !== "Available") {
         console.log("Availability data:", availabilityData[formattedDate]);
         console.log("Campsite is not reservable on date:", formattedDate);
         isReservable = false;

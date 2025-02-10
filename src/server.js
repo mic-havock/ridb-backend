@@ -9,10 +9,10 @@ const startReservationMonitor = require("./reservationMonitor/reservationMonitor
 dotenv.config();
 
 // Import routes
-const facilitiesRouter = require("./routes/facilities");
-const { router: campsitesRouter } = require("./routes/campsites");
-const locationRouter = require("./routes/location");
-const reservationsRouter = require("./db/reservations");
+const facilitiesRouter = require("../src/routes/facilities");
+const { router: campsitesRouter } = require("../src/routes/campsites");
+const locationRouter = require("../src/routes/location");
+const reservationsRouter = require("../src/routes/reservations");
 
 const app = express();
 const PORT = process.env.PORT || 3000;

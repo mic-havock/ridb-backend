@@ -11,6 +11,8 @@ try {
       name TEXT NOT NULL,
       email_address TEXT NOT NULL,
       campsite_id TEXT NOT NULL,
+      campsite_name TEXT NOT NULL,
+      campsite_number TEXT NOT NULL,
       reservation_start_date DATE NOT NULL,
       reservation_end_date DATE NOT NULL,
       monitoring_active BOOLEAN NOT NULL DEFAULT 0,
