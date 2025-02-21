@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const db = require("better-sqlite3")("./reservations.db");
+const emailTemplates = require("../notifications/emailTemplates");
+const { sendEmailNotification } = require("../notifications/emails");
 
 /**
  * Route to disable monitoring for a specific reservation
@@ -49,7 +51,7 @@ router.get("/disable-monitoring/:id/:email", (req, res) => {
 });
 
 // Create a new reservation
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const {
       name,
@@ -84,10 +86,31 @@ router.post("/", (req, res) => {
       success_sent ? 1 : 0
     );
 
+    // Send confirmation email
+    let subject = emailTemplates.confirmation.subject;
+    let message = emailTemplates.confirmation.body;
+
+    // Replace placeholders
+    subject = subject
+      .replace("{campsite_name}", campsite_name)
+      .replace("{campsite_number}", campsite_number);
+
+    message = message
+      .replace("{campsite_name}", campsite_name)
+      .replace("{campsite_number}", campsite_number)
+      .replace("{campsite_id}", campsite_id)
+      .replace("{start_date}", reservation_start_date)
+      .replace("{end_date}", reservation_end_date)
+      .replace("{base_url}", process.env.BASE_URL || "http://localhost:3000")
+      .replace("{reservation_id}", result.lastInsertRowid)
+      .replace("{email_address}", encodeURIComponent(email_address));
+
+    await sendEmailNotification(campsite_id, subject, message, email_address);
+
     res.status(201).json({
       success: true,
       id: result.lastInsertRowid,
-      message: `Monitoring enabled for ${campsite_name}`,
+      message: `Monitoring enabled for ${campsite_name}. Confirmation email sent to ${email_address}`,
     });
   } catch (err) {
     console.error("Error creating reservation:", err.message);
