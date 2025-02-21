@@ -16,10 +16,6 @@ const reservationsRouter = require("../src/routes/reservations");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const options = {
-  key: fs.readFileSync("./backend.key"),
-  cert: fs.readFileSync("./backend.crt"),
-};
 
 // Middleware for JSON parsing
 app.use(express.json());
@@ -32,10 +28,6 @@ app.use("/api", facilitiesRouter);
 app.use("/api", campsitesRouter);
 app.use("/api", locationRouter);
 app.use("/api/reservations", reservationsRouter); // Mount reservations endpoints
-
-https.createServer(options, app).listen(443, () => {
-  console.log("Backend running on https://10.0.0.153");
-});
 
 // Default route to check if the server is running
 app.get("/", (req, res) => {
