@@ -74,10 +74,7 @@ const monitorReservations = async () => {
               .replace("{campsite_id}", row.campsite_id)
               .replace("{start_date}", row.reservation_start_date)
               .replace("{end_date}", row.reservation_end_date)
-              .replace(
-                "{base_url}",
-                process.env.BASE_URL || "http://localhost:3000"
-              )
+              .replace("{base_url}", process.env.EXTERNAL_BASE_URL)
               .replace("{reservation_id}", row.id)
               .replace(
                 "{email_address}",
