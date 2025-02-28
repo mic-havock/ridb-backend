@@ -101,7 +101,10 @@ router.post("/", async (req, res) => {
       .replace("{campsite_id}", campsite_id)
       .replace("{start_date}", reservation_start_date)
       .replace("{end_date}", reservation_end_date)
-      .replace("{base_url}", process.env.BASE_URL || "http://localhost:3000")
+      .replace(
+        "{base_url}",
+        process.env.EXTERNAL_BASE_URL || "http://localhost:3000"
+      )
       .replace("{reservation_id}", result.lastInsertRowid)
       .replace("{email_address}", encodeURIComponent(email_address));
 
