@@ -37,10 +37,8 @@ router.get("/disable-monitoring/:id/:email", (req, res) => {
       });
     }
 
-    res.json({
-      message: "Monitoring disabled successfully",
-      reservationId: id,
-    });
+    // Return a user-friendly HTML page using the template
+    res.send(emailTemplates.htmlTemplates.monitoringDisabled);
   } catch (error) {
     console.error("Error disabling monitoring:", error);
     res.status(500).json({
