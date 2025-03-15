@@ -2,7 +2,7 @@
  * Email templates for notification messages
  * Contains subject and body templates for different notification types
  */
-const emailTemplates = {
+const notificationsTemplate = {
   success: {
     subject:
       "{campsite_name} {campsite_number} is Available for Your Dates! 🏕️",
@@ -100,7 +100,7 @@ const htmlTemplates = {
 };
 
 module.exports = {
-  confirmation: emailTemplates.confirmation,
-  availabilityFound: emailTemplates.success,
+  confirmation: notificationsTemplate.confirmation,
+  availabilityFound: notificationsTemplate.success,
   htmlTemplates,
 };
