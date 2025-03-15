@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("better-sqlite3")("./reservations.db");
-const emailTemplates = require("../notifications/emailTemplates");
+const notificationsTemplate = require("../notifications/notificationsTemplate");
 const { sendEmailNotification } = require("../notifications/emails");
 
 /**
@@ -38,7 +38,7 @@ router.get("/disable-monitoring/:id/:email", (req, res) => {
     }
 
     // Return a user-friendly HTML page using the template
-    res.send(emailTemplates.htmlTemplates.monitoringDisabled);
+    res.send(notificationsTemplate.htmlTemplates.monitoringDisabled);
   } catch (error) {
     console.error("Error disabling monitoring:", error);
     res.status(500).json({
@@ -85,8 +85,8 @@ router.post("/", async (req, res) => {
     );
 
     // Send confirmation email
-    let subject = emailTemplates.confirmation.subject;
-    let message = emailTemplates.confirmation.body;
+    let subject = notificationsTemplate.confirmation.subject;
+    let message = notificationsTemplate.confirmation.body;
 
     // Replace placeholders
     subject = subject
