@@ -21,8 +21,8 @@ async function checkCampsiteAvailability(campsiteId, startDate, endDate) {
     //console.log("Availability data:", availabilityData);
     const startDateObj = new Date(startDate);
     const endDateObj = endDate ? new Date(endDate) : startDateObj;
-    //console.log("Start Date:", startDateObj);
-    //console.log("End Date:", endDateObj);
+    console.log("Start Date:", startDateObj);
+    console.log("End Date:", endDateObj);
     let isReservable = true;
 
     // Loop through the date range to check availabilities
@@ -143,6 +143,27 @@ async function fetchCampsiteAvailability(campsiteId) {
     const response = await axios.get(url);
     return response.data;
   } catch (error) {
+    // Check if this is a rate limit error (429)
+    if (error.response && error.response.status === 429) {
+      // Get pause duration from environment variable or default to 120 seconds (2 minutes)
+      const pauseDurationSeconds = parseInt(
+        process.env.RATE_LIMIT_PAUSE_SECONDS || "120",
+        10
+      );
+      console.log(
+        `Rate limit (429) hit for campsite ${campsiteId}. Pausing for ${pauseDurationSeconds} seconds...`
+      );
+
+      // Pause execution for the specified duration
+      await new Promise((resolve) =>
+        setTimeout(resolve, pauseDurationSeconds * 1000)
+      );
+
+      // Try again after the pause
+      console.log(`Retrying request for campsite ${campsiteId} after pause...`);
+      return fetchCampsiteAvailability(campsiteId); // Recursive call to retry
+    }
+
     console.error(
       "Error fetching campsite availability:",
       error.response?.data || error.message
