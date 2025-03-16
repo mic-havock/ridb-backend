@@ -20,8 +20,7 @@ Don't wait - available campsites can be booked quickly!
 Happy Camping! 🏕️
 
 ---
-To stop receiving these alerts, click here:
-{base_url}/api/reservations/disable-monitoring/{reservation_id}/{email_address}`,
+To stop receiving these alerts, <a href="{base_url}/api/reservations/disable-monitoring/{reservation_id}/{email_address}">click here</a>`,
   },
 
   confirmation: {
@@ -36,11 +35,10 @@ We'll monitor availability for:
 
 You'll receive an email as soon as this campsite becomes available for your dates.
 
-View the campsite here: https://www.recreation.gov/camping/campsites/{campsite_id}
+View the campsite <a href="https://www.recreation.gov/camping/campsites/{campsite_id}">here</a>
 
 ---
-To stop receiving these alerts, click here:
-{base_url}/api/reservations/disable-monitoring/{reservation_id}/{email_address}
+To stop receiving these alerts, <a href="{base_url}/api/reservations/disable-monitoring/{reservation_id}/{email_address}">click here</a>
 
 Happy Camping! 🏕️`,
   },

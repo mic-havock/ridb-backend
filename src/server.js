@@ -1,5 +1,3 @@
-const fs = require("fs");
-const https = require("https");
 const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
@@ -13,6 +11,7 @@ const facilitiesRouter = require("../src/routes/facilities");
 const { router: campsitesRouter } = require("../src/routes/campsites");
 const locationRouter = require("../src/routes/location");
 const reservationsRouter = require("../src/routes/reservations");
+const userRouter = require("../src/routes/user"); // Import user routes
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,6 +27,7 @@ app.use("/api", facilitiesRouter);
 app.use("/api", campsitesRouter);
 app.use("/api", locationRouter);
 app.use("/api/reservations", reservationsRouter); // Mount reservations endpoints
+app.use("/api/user", userRouter); // Mount user endpoints
 
 // Default route to check if the server is running
 app.get("/", (req, res) => {
