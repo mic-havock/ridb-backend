@@ -124,57 +124,6 @@ router.patch("/reservations/batch/monitoring", async (req, res) => {
 });
 
 /**
- * Diagnostic route to check database structure
- * @route GET /api/user/diagnostic
- */
-router.get("/diagnostic", (req, res) => {
-  try {
-    // Check if reservations table exists
-    const tables = db
-      .prepare("SELECT name FROM sqlite_master WHERE type='table'")
-      .all();
-
-    // If reservations table exists, check its structure
-    const hasReservationsTable = tables.some(
-      (table) => table.name === "reservations"
-    );
-
-    if (hasReservationsTable) {
-      // Get table structure
-      const tableInfo = db.prepare("PRAGMA table_info(reservations)").all();
-
-      // Count total records
-      const totalCount = db
-        .prepare("SELECT COUNT(*) as count FROM reservations")
-        .get();
-
-      // Sample some records
-      const sampleRecords = db
-        .prepare("SELECT * FROM reservations LIMIT 3")
-        .all();
-
-      return res.status(200).json({
-        message: "Database diagnostic completed",
-        tables: tables,
-        reservationsTableStructure: tableInfo,
-        totalRecords: totalCount.count,
-        sampleRecords: sampleRecords,
-      });
-    } else {
-      return res.status(404).json({
-        message: "Reservations table not found in database",
-        availableTables: tables,
-      });
-    }
-  } catch (error) {
-    return res.status(500).json({
-      message: "Failed to run database diagnostic",
-      error: error.message,
-    });
-  }
-});
-
-/**
  * Get all reservations for a user by email address
  * @route GET /api/user/reservations
  * @param {string} email - Email address of the user
@@ -452,14 +401,5 @@ router.get(
     }
   }
 );
-
-// Keep the test endpoint for debugging
-router.patch("/test-patch", (req, res) => {
-  console.log("[PATCH] /test-patch - Request received");
-  return res.status(200).json({
-    message: "PATCH method is working on this test endpoint",
-    receivedBody: req.body,
-  });
-});
 
 module.exports = router;
