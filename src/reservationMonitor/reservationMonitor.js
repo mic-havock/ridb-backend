@@ -54,6 +54,7 @@ const processBatch = async (batch) => {
           // Get templates from the templates file instead of env
           let subject = notificationsTemplate.success.subject;
           let message = notificationsTemplate.success.body;
+          let htmlMessage = notificationsTemplate.success.html;
 
           // Replace placeholders with actual values
           subject = subject.replace("{campsite_name}", row.campsite_name);
@@ -68,10 +69,20 @@ const processBatch = async (batch) => {
             .replace("{reservation_id}", row.id)
             .replace("{email_address}", encodeURIComponent(row.email_address));
 
+          htmlMessage = htmlMessage
+            .replace("{campsite_name}", row.campsite_name)
+            .replace("campsite_number", row.campsite_number)
+            .replace("{campsite_id}", row.campsite_id)
+            .replace("{start_date}", row.reservation_start_date)
+            .replace("{end_date}", row.reservation_end_date)
+            .replace("{base_url}", process.env.EXTERNAL_BASE_URL)
+            .replace("{reservation_id}", row.id)
+            .replace("{email_address}", encodeURIComponent(row.email_address));
+
           await sendEmailNotification(
             row.campsite_id,
             subject,
-            message,
+            { text: message, html: htmlMessage },
             row.email_address
           );
 

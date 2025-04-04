@@ -20,7 +20,30 @@ Don't wait - available campsites can be booked quickly!
 Happy Camping! 🏕️
 
 ---
-To stop receiving these alerts <a href="{base_url}/api/reservations/disable-monitoring/{reservation_id}/{email_address}">click here</a>`,
+To stop receiving these alerts, visit: {base_url}/api/reservations/disable-monitoring/{reservation_id}/{email_address}`,
+    html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <h2>Great news! The campsite you're interested in is now available!</h2>
+
+  <div style="margin: 20px 0;">
+    <strong>Campsite Details:</strong>
+    <ul>
+      <li>Campground: {campsite_name}</li>
+      <li>Campsite: {campsite_number}</li>
+      <li>Dates Available: {start_date} through {end_date}</li>
+    </ul>
+  </div>
+
+  <p><a href="https://www.recreation.gov/camping/campsites/{campsite_id}" style="display: inline-block; background-color: #2c7744; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Book Now</a></p>
+
+  <p>Don't wait - available campsites can be booked quickly!</p>
+
+  <p>Happy Camping! 🏕️</p>
+
+  <hr style="border: 1px solid #eee; margin: 20px 0;">
+  <p style="font-size: 12px; color: #666;">
+    To stop receiving these alerts <a href="{base_url}/api/reservations/disable-monitoring/{reservation_id}/{email_address}">click here</a>
+  </p>
+</div>`,
   },
 
   confirmation: {
@@ -35,12 +58,35 @@ We'll monitor availability for:
 
 You'll receive an email as soon as this campsite becomes available for your dates.
 
-View the campsite <a href="https://www.recreation.gov/camping/campsites/{campsite_id}">here</a>
+View the campsite: https://www.recreation.gov/camping/campsites/{campsite_id}
 
 ---
-To stop receiving these alerts <a href="{base_url}/api/reservations/disable-monitoring/{reservation_id}/{email_address}">click here</a>
+To stop receiving these alerts, visit: {base_url}/api/reservations/disable-monitoring/{reservation_id}/{email_address}
 
 Happy Camping! 🏕️`,
+    html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <h2>Your campsite alert has been successfully created!</h2>
+
+  <div style="margin: 20px 0;">
+    <strong>We'll monitor availability for:</strong>
+    <ul>
+      <li>Campground: {campsite_name}</li>
+      <li>Campsite: {campsite_number}</li>
+      <li>Dates Requested: {start_date} through {end_date}</li>
+    </ul>
+  </div>
+
+  <p>You'll receive an email as soon as this campsite becomes available for your dates.</p>
+
+  <p><a href="https://www.recreation.gov/camping/campsites/{campsite_id}" style="display: inline-block; background-color: #2c7744; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">View Campsite</a></p>
+
+  <p>Happy Camping! 🏕️</p>
+
+  <hr style="border: 1px solid #eee; margin: 20px 0;">
+  <p style="font-size: 12px; color: #666;">
+    To stop receiving these alerts <a href="{base_url}/api/reservations/disable-monitoring/{reservation_id}/{email_address}">click here</a>
+  </p>
+</div>`,
   },
 };
 

@@ -87,6 +87,7 @@ router.post("/", async (req, res) => {
     // Send confirmation email
     let subject = notificationsTemplate.confirmation.subject;
     let message = notificationsTemplate.confirmation.body;
+    let htmlMessage = notificationsTemplate.confirmation.html;
 
     // Replace placeholders
     subject = subject
@@ -106,7 +107,25 @@ router.post("/", async (req, res) => {
       .replace("{reservation_id}", result.lastInsertRowid)
       .replace("{email_address}", encodeURIComponent(email_address));
 
-    await sendEmailNotification(campsite_id, subject, message, email_address);
+    htmlMessage = htmlMessage
+      .replace("{campsite_name}", campsite_name)
+      .replace("{campsite_number}", campsite_number)
+      .replace("{campsite_id}", campsite_id)
+      .replace("{start_date}", reservation_start_date)
+      .replace("{end_date}", reservation_end_date)
+      .replace(
+        "{base_url}",
+        process.env.EXTERNAL_BASE_URL || "http://localhost:3000"
+      )
+      .replace("{reservation_id}", result.lastInsertRowid)
+      .replace("{email_address}", encodeURIComponent(email_address));
+
+    await sendEmailNotification(
+      campsite_id,
+      subject,
+      { text: message, html: htmlMessage },
+      email_address
+    );
 
     res.status(201).json({
       success: true,

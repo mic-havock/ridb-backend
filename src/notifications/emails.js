@@ -17,11 +17,15 @@ const sendEmailNotification = async (
   message,
   recipientEmail
 ) => {
+  // Determine if message is a string or an object with text/html
+  const isMessageObject = typeof message === "object" && message !== null;
+
   const mailOptions = {
     from: process.env.EMAIL_USER, // Sender address
     to: recipientEmail, // Recipient email address
     subject: subject,
-    text: message, // Email text body
+    text: isMessageObject ? message.text : message, // Plain text version
+    html: isMessageObject ? message.html : message, // HTML version
   };
 
   try {

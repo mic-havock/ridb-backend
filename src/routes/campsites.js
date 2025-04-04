@@ -11,6 +11,11 @@ const router = express.Router();
 const RIDB_BASE_URL = process.env.RIDB_BASE_URL;
 const RIDB_API_KEY = process.env.RIDB_API_KEY;
 
+// Get available campsite statuses from environment variable
+const AVAILABLE_CAMPSITE_STATUSES = process.env.AVAILABLE_CAMPSITE_STATUSES
+  ? process.env.AVAILABLE_CAMPSITE_STATUSES.split(",")
+  : ["Available", "Open"]; // Default if not set
+
 // Checks campsite availability
 async function checkCampsiteAvailability(campsiteId, startDate, endDate) {
   console.log("Checking availability for campsite:", campsiteId);
@@ -28,12 +33,14 @@ async function checkCampsiteAvailability(campsiteId, startDate, endDate) {
     // Loop through the date range to check availabilities
     for (
       let date = new Date(startDateObj);
-      date <= endDateObj;
+      date < endDateObj;
       date.setDate(date.getDate() + 1)
     ) {
       const formattedDate = date.toISOString().split("T")[0] + "T00:00:00Z";
       console.log("Checking availability for date:", formattedDate);
-      if (availabilityData[formattedDate] !== "Available") {
+      if (
+        !AVAILABLE_CAMPSITE_STATUSES.includes(availabilityData[formattedDate])
+      ) {
         console.log("Availability data:", availabilityData[formattedDate]);
         console.log("Campsite is not reservable on date:", formattedDate);
         isReservable = false;
