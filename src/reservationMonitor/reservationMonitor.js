@@ -57,11 +57,13 @@ const processBatch = async (batch) => {
           let htmlMessage = notificationsTemplates.availabilityFound.html;
 
           // Replace placeholders with actual values
-          subject = subject.replace("{campsite_name}", row.campsite_name);
+          subject = subject
+            .replace("{campsite_name}", row.campsite_name)
+            .replace("{campsite_number}", row.campsite_number);
 
           message = message
             .replace("{campsite_name}", row.campsite_name)
-            .replace("campsite_number", row.campsite_number)
+            .replace("{campsite_number}", row.campsite_number)
             .replace("{campsite_id}", row.campsite_id)
             .replace("{start_date}", row.reservation_start_date)
             .replace("{end_date}", row.reservation_end_date)
@@ -71,7 +73,7 @@ const processBatch = async (batch) => {
 
           htmlMessage = htmlMessage
             .replace("{campsite_name}", row.campsite_name)
-            .replace("campsite_number", row.campsite_number)
+            .replace("{campsite_number}", row.campsite_number)
             .replace("{campsite_id}", row.campsite_id)
             .replace("{start_date}", row.reservation_start_date)
             .replace("{end_date}", row.reservation_end_date)
