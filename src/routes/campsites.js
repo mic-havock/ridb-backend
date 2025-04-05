@@ -30,6 +30,9 @@ async function checkCampsiteAvailability(campsiteId, startDate, endDate) {
     console.log("End Date:", endDateObj);
     let isReservable = true;
 
+    // Check if this is a single date check (start date equals end date)
+    const isSingleDateCheck = startDateObj.getTime() === endDateObj.getTime();
+
     // Loop through the date range to check availabilities
     for (
       let date = new Date(startDateObj);
@@ -38,10 +41,23 @@ async function checkCampsiteAvailability(campsiteId, startDate, endDate) {
     ) {
       const formattedDate = date.toISOString().split("T")[0] + "T00:00:00Z";
       console.log("Checking availability for date:", formattedDate);
-      if (
-        !AVAILABLE_CAMPSITE_STATUSES.includes(availabilityData[formattedDate])
-      ) {
-        console.log("Availability data:", availabilityData[formattedDate]);
+
+      // For single date checks, only accept "Available" status specifically
+      // For date ranges, use the configurable AVAILABLE_CAMPSITE_STATUSES array
+      const status = availabilityData[formattedDate];
+      console.log("Status for date:", status);
+
+      if (isSingleDateCheck) {
+        if (status !== "Available") {
+          console.log(
+            "Single date check requires 'Available' status, found:",
+            status
+          );
+          isReservable = false;
+          break;
+        }
+      } else if (!AVAILABLE_CAMPSITE_STATUSES.includes(status)) {
+        console.log("Availability data:", status);
         console.log("Campsite is not reservable on date:", formattedDate);
         isReservable = false;
         break;
