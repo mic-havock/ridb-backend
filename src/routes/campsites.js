@@ -36,7 +36,7 @@ async function checkCampsiteAvailability(campsiteId, startDate, endDate) {
     // Loop through the date range to check availabilities
     for (
       let date = new Date(startDateObj);
-      date < endDateObj;
+      date <= endDateObj;
       date.setDate(date.getDate() + 1)
     ) {
       const formattedDate = date.toISOString().split("T")[0] + "T00:00:00Z";
