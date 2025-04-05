@@ -2,7 +2,7 @@ require("dotenv").config(); // Load environment variables
 const sqlite3 = require("better-sqlite3"); // Use better-sqlite3 for improved performance
 const { checkCampsiteAvailability } = require("../routes/campsites.js"); // Import availability check function
 const { sendEmailNotification } = require("../notifications/emails.js"); // Import the sendEmailNotification function
-const notificationsTemplate = require("../notifications/notificationsTemplate.js");
+const notificationsTemplates = require("../notifications/notificationsTemplate.js");
 
 // Path to your database
 const db = sqlite3("./reservations.db");
@@ -52,9 +52,9 @@ const processBatch = async (batch) => {
           console.log(`Alert: Campsite ${row.campsite_id} is now reservable!`);
 
           // Get templates from the templates file instead of env
-          let subject = notificationsTemplate.success.subject;
-          let message = notificationsTemplate.success.body;
-          let htmlMessage = notificationsTemplate.success.html;
+          let subject = notificationsTemplates.availabilityFound.subject;
+          let message = notificationsTemplates.availabilityFound.body;
+          let htmlMessage = notificationsTemplates.availabilityFound.html;
 
           // Replace placeholders with actual values
           subject = subject.replace("{campsite_name}", row.campsite_name);
