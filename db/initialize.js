@@ -17,7 +17,11 @@ try {
       reservation_end_date DATE NOT NULL,
       monitoring_active BOOLEAN NOT NULL DEFAULT 0,
       attempts_made INTEGER NOT NULL DEFAULT 0,
-      success_sent BOOLEAN NOT NULL DEFAULT 0
+      success_sent BOOLEAN NOT NULL DEFAULT 0,
+      last_success_sent_at DATETIME,
+      user_deleted BOOLEAN NOT NULL DEFAULT 0,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `;
 

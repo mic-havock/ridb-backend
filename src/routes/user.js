@@ -336,6 +336,72 @@ router.delete("/reservations/:id", async (req, res) => {
 });
 
 /**
+ * Mark a reservation as deleted by the user (soft delete)
+ * @route PATCH /api/user/reservations/:id/user-delete
+ * @param {number} id - Reservation ID
+ * @returns {Object} - Success message and the updated reservation (optional)
+ */
+router.patch("/reservations/:id/user-delete", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if reservation exists
+    const reservation = db
+      .prepare("SELECT * FROM reservations WHERE id = ?")
+      .get(id);
+
+    if (!reservation) {
+      return res.status(404).json({
+        message: "Reservation not found",
+      });
+    }
+
+    // Check if already marked as deleted
+    if (reservation.user_deleted === 1) {
+      return res.status(409).json({
+        // 409 Conflict might be appropriate
+        message: "Reservation already marked as deleted by user",
+        reservation: reservation, // Optionally return the existing state
+      });
+    }
+
+    // Update user_deleted status
+    const result = db
+      .prepare("UPDATE reservations SET user_deleted = 1 WHERE id = ?")
+      .run(id);
+
+    // Check if the update was successful
+    if (result.changes === 0) {
+      // This case might occur if the reservation exists but the update fails for some reason,
+      // though it's less likely with a simple update like this.
+      // It could also happen in a race condition if deleted between the SELECT and UPDATE.
+      return res.status(404).json({
+        message: "Reservation found but could not be marked as deleted.",
+      });
+    }
+
+    // Optionally, retrieve the updated reservation to return it
+    const updatedReservation = db
+      .prepare("SELECT * FROM reservations WHERE id = ?")
+      .get(id);
+
+    return res.status(200).json({
+      message: "Reservation successfully marked as deleted by user",
+      reservation: updatedReservation, // Return the updated record
+    });
+  } catch (error) {
+    console.error(
+      "[PATCH] /reservations/:id/user-delete - Error:",
+      error.message
+    );
+    return res.status(500).json({
+      message: "Failed to mark reservation as deleted",
+      error: error.message,
+    });
+  }
+});
+
+/**
  * Get user statistics
  * @route GET /api/user/stats
  * @param {string} email - Email address of the user
