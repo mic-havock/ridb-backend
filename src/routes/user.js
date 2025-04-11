@@ -8,6 +8,121 @@ const db = require("better-sqlite3")("./reservations.db");
 
 const { body, query, validationResult } = require("express-validator");
 
+// BATCH MONITORING ROUTES - Must be defined before other reservation routes
+// GET route for batch monitoring
+router.get("/reservations/batch/monitoring", (req, res) => {
+  console.log("[GET] /reservations/batch/monitoring - Request received");
+  return res.status(200).json({
+    message: "GET endpoint for batch monitoring is working",
+    note: "For actual updates, use PATCH method with appropriate body parameters",
+    example: {
+      email: "user@example.com",
+      active: true, // boolean true/false or string "true"/"false"
+      ids: [1, 2, 3], // optional array of reservation IDs
+    },
+  });
+});
+
+// PATCH route for batch monitoring
+router.patch("/reservations/batch/monitoring", async (req, res) => {
+  console.log("[PATCH] /reservations/batch/monitoring - Request received");
+
+  try {
+    const { email, active } = req.body;
+
+    // Manual validation for better error messages
+    if (!email) {
+      return res.status(400).json({
+        message: "Email is required",
+        receivedBody: req.body,
+      });
+    }
+
+    // Convert string "true"/"false" to boolean if needed
+    const activeBoolean =
+      active === "true" ? true : active === "false" ? false : active;
+
+    if (typeof activeBoolean !== "boolean") {
+      return res.status(400).json({
+        message: "Active must be a boolean value or 'true'/'false' string",
+        received: active,
+        receivedType: typeof active,
+      });
+    }
+
+    // Check if any reservations exist for this email
+    const existingReservations = db
+      .prepare(
+        "SELECT COUNT(*) as count FROM reservations WHERE email_address = ?"
+      )
+      .get(email);
+
+    if (existingReservations.count === 0) {
+      console.log(
+        `[PATCH] /reservations/batch/monitoring - No reservations found for email: ${email}`
+      );
+      return res.status(404).json({
+        message: "No reservations found for this email address",
+        email: email,
+        debug: {
+          query:
+            "SELECT COUNT(*) as count FROM reservations WHERE email_address = ?",
+          params: [email],
+        },
+      });
+    }
+
+    let { ids } = req.body;
+    let updateCount = 0;
+
+    if (ids && Array.isArray(ids) && ids.length > 0) {
+      // Update specific reservations for this email
+      const placeholders = ids.map(() => "?").join(",");
+      console.log("Updating specific reservations with IDs:", ids);
+
+      const result = db
+        .prepare(
+          `UPDATE reservations SET monitoring_active = ? WHERE id IN (${placeholders}) AND email_address = ?`
+        )
+        .run(activeBoolean ? 1 : 0, ...ids, email);
+
+      updateCount = result.changes;
+    } else {
+      // Update all reservations for this email
+      console.log("Updating all reservations for email:", email);
+
+      const result = db
+        .prepare(
+          "UPDATE reservations SET monitoring_active = ? WHERE email_address = ?"
+        )
+        .run(activeBoolean ? 1 : 0, email);
+
+      updateCount = result.changes;
+    }
+
+    console.log(
+      `[PATCH] /reservations/batch/monitoring - Updated ${updateCount} reservations for email: ${email}`
+    );
+
+    return res.status(200).json({
+      message: `Monitoring ${
+        activeBoolean ? "enabled" : "disabled"
+      } for ${updateCount} reservations`,
+      count: updateCount,
+    });
+  } catch (error) {
+    console.error(
+      "[PATCH] /reservations/batch/monitoring - Error:",
+      error.message
+    );
+    return res.status(500).json({
+      message: "Failed to update monitoring status",
+      error: error.message,
+      stack: error.stack,
+    });
+  }
+});
+
 /**
  * Get all reservations for a user by email address
  * @route GET /api/user/reservations
