@@ -88,9 +88,9 @@ const processBatch = async (batch) => {
             row.email_address
           );
 
-          // Increment success_sent counter
+          // Increment success_sent counter and update timestamps
           db.prepare(
-            "UPDATE reservations SET success_sent = success_sent + 1 WHERE id = ?"
+            "UPDATE reservations SET success_sent = success_sent + 1, last_success_sent_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
           ).run(row.id);
 
           console.log(`Campsite availability alert`, {
