@@ -3,10 +3,13 @@ require("dotenv").config(); // Load environment variables
 
 // Create a transporter for sending emails
 const transporter = nodemailer.createTransport({
-  service: "gmail", // Or your email provider (e.g., Yahoo, Outlook)
+  //service: "gmail", // Or your email provider (e.g., Yahoo, Outlook)
+  host: process.env.EMAIL_HOST, // Zoho SMTP server
+  port: process.env.EMAIL_PORT, // Zoho SMTP port for SSL
+  secure: process.env.EMAIL_SECURE, // Use SSL
   auth: {
-    user: process.env.EMAIL_USER, // Your email address
-    pass: process.env.EMAIL_PASS, // Your email password or app-specific password
+    user: process.env.EMAIL_USER, // Your Zoho email address
+    pass: process.env.EMAIL_PASS, // Your Zoho app-specific password
   },
 });
 
