@@ -157,7 +157,9 @@ const monitorReservations = async () => {
   try {
     // Fetch only necessary columns (e.g., id) for active monitoring records
     const rows = db
-      .prepare("SELECT * FROM reservations WHERE monitoring_active = 1")
+      .prepare(
+        "SELECT * FROM reservations WHERE monitoring_active = 1 and user_deleted = 0"
+      )
       .all();
 
     if (rows.length === 0) {
