@@ -24,7 +24,7 @@ const sendEmailNotification = async (
   const isMessageObject = typeof message === "object" && message !== null;
 
   const mailOptions = {
-    from: process.env.EMAIL_USER, // Sender address
+    from: `"${process.env.EMAIL_NAME}" <${process.env.EMAIL_USER}>`,
     to: recipientEmail, // Recipient email address
     subject: subject,
     text: isMessageObject ? message.text : message, // Plain text version
