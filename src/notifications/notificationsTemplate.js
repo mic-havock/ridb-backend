@@ -41,7 +41,7 @@ To stop receiving these alerts, visit: {base_url}/api/reservations/disable-monit
 
   <hr style="border: 1px solid #eee; margin: 20px 0;">
   <p style="font-size: 12px; color: #666;">
-    To stop receiving these alerts <a href="{base_url}/api/reservations/disable-monitoring/{reservation_id}/{email_address}">click here</a>
+    To stop receiving these alerts click <a href="{base_url}/api/reservations/disable-monitoring/{reservation_id}/{email_address}">here</a>
   </p>
 </div>`,
   },
@@ -84,7 +84,7 @@ Happy Camping! 🏕️`,
 
   <hr style="border: 1px solid #eee; margin: 20px 0;">
   <p style="font-size: 12px; color: #666;">
-    To stop receiving these alerts <a href="{base_url}/api/reservations/disable-monitoring/{reservation_id}/{email_address}">click here</a>
+    To stop receiving these alerts click <a href="{base_url}/api/reservations/disable-monitoring/{reservation_id}/{email_address}">here</a>
   </p>
 </div>`,
   },
