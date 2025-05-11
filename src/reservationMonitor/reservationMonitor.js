@@ -167,10 +167,6 @@ const monitorReservations = async () => {
       return;
     }
 
-    // Get batch size and delay from environment variables or use defaults
-    // Add these to your .env file:
-    // MONITOR_BATCH_SIZE=10 (number of reservations to process in each batch)
-    // MONITOR_BATCH_DELAY_MS=2000 (delay between batches in milliseconds)
     const batchSize = parseInt(process.env.MONITOR_BATCH_SIZE || "10", 10);
     const batchDelayMs = parseInt(
       process.env.MONITOR_BATCH_DELAY_MS || "2000",
