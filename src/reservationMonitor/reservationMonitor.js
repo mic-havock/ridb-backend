@@ -167,6 +167,18 @@ const monitorReservations = async () => {
       return;
     }
 
+    // Filter out rows where last_success_sent_at is less than 10 minutes ago
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    const filteredRows = rows.filter((row) => {
+      const lastSuccessSentAt = new Date(row.last_success_sent_at);
+      return isNaN(lastSuccessSentAt) || lastSuccessSentAt < tenMinutesAgo;
+    });
+
+    if (filteredRows.length === 0) {
+      console.log("No reservations to process after filtering.");
+      return;
+    }
+
     const batchSize = parseInt(process.env.MONITOR_BATCH_SIZE || "10", 10);
     const batchDelayMs = parseInt(
       process.env.MONITOR_BATCH_DELAY_MS || "2000",
@@ -174,19 +186,19 @@ const monitorReservations = async () => {
     );
 
     console.log(
-      `Processing ${rows.length} reservations in batches of ${batchSize} with ${batchDelayMs}ms delay between batches`
+      `Processing ${filteredRows.length} reservations in batches of ${batchSize} with ${batchDelayMs}ms delay between batches`
     );
 
     // Process records in batches with delay between batches
     const results = await processBatches(
-      rows,
+      filteredRows,
       batchSize,
       batchDelayMs,
       processBatch
     );
 
     console.log("Monitoring cycle complete", {
-      processedReservations: rows.length,
+      processedReservations: filteredRows.length,
     });
     return results;
   } catch (error) {
