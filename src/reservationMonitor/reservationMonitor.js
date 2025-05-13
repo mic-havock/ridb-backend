@@ -168,7 +168,13 @@ const monitorReservations = async () => {
     }
 
     // Filter out rows where last_success_sent_at is less than 10 minutes ago
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    const monitoringIntervalMinutes = parseInt(
+      process.env.MONITOR_INTERVAL_MINUTES || "10",
+      10
+    );
+    const tenMinutesAgo = new Date(
+      Date.now() - monitoringIntervalMinutes * 60 * 1000
+    );
     const filteredRows = rows.filter((row) => {
       const lastSuccessSentAt = new Date(row.last_success_sent_at);
       return isNaN(lastSuccessSentAt) || lastSuccessSentAt < tenMinutesAgo;
