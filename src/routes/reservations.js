@@ -138,4 +138,125 @@ router.post("/", async (req, res) => {
   }
 });
 
+/**
+ * Route to create multiple reservations in bulk
+ * @route POST /bulk
+ * @param {Array} reservations - Array of reservation objects to create
+ * @returns {object} Success or error message with created reservation IDs
+ */
+router.post("/bulk", async (req, res) => {
+  try {
+    const { reservations } = req.body;
+
+    if (!Array.isArray(reservations) || reservations.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "Invalid reservations data. Expected non-empty array of reservations.",
+      });
+    }
+
+    const createdReservations = [];
+    const stmt = db.prepare(`
+      INSERT INTO reservations (
+        name, email_address, campsite_id, campsite_name, campsite_number, reservation_start_date, reservation_end_date,
+        monitoring_active, attempts_made, success_sent
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const reservation of reservations) {
+      const {
+        name,
+        email_address,
+        campsite_id,
+        campsite_name,
+        campsite_number,
+        reservation_start_date,
+        reservation_end_date,
+        monitoring_active,
+        attempts_made,
+        success_sent,
+      } = reservation;
+
+      const result = stmt.run(
+        name,
+        email_address,
+        campsite_id,
+        campsite_name,
+        campsite_number,
+        reservation_start_date,
+        reservation_end_date,
+        monitoring_active ? 1 : 0,
+        attempts_made,
+        success_sent ? 1 : 0
+      );
+
+      createdReservations.push({
+        id: result.lastInsertRowid,
+        campsite_name,
+        campsite_number,
+      });
+    }
+
+    // Send bulk confirmation email to the first reservation's email address
+    const firstReservation = reservations[0];
+    let subject = notificationsTemplate.bulkConfirmation.subject;
+    let message = notificationsTemplate.bulkConfirmation.body;
+    let htmlMessage = notificationsTemplate.bulkConfirmation.html;
+
+    // Create campsite list for plain text
+    const campsiteList = createdReservations
+      .map((res) => `- ${res.campsite_name} (Site ${res.campsite_number})`)
+      .join("\n");
+
+    // Create campsite list for HTML
+    const campsiteListHtml = createdReservations
+      .map(
+        (res) => `<li>${res.campsite_name} (Site ${res.campsite_number})</li>`
+      )
+      .join("");
+
+    // Replace placeholders
+    message = message
+      .replace("{campsite_list}", campsiteList)
+      .replace(
+        "{base_url}",
+        process.env.EXTERNAL_BASE_URL || "http://localhost:3000"
+      )
+      .replace("{reservation_id}", createdReservations[0].id)
+      .replace(
+        "{email_address}",
+        encodeURIComponent(firstReservation.email_address)
+      );
+
+    htmlMessage = htmlMessage
+      .replace("{campsite_list_html}", campsiteListHtml)
+      .replace(
+        "{base_url}",
+        process.env.EXTERNAL_BASE_URL || "http://localhost:3000"
+      )
+      .replace("{reservation_id}", createdReservations[0].id)
+      .replace(
+        "{email_address}",
+        encodeURIComponent(firstReservation.email_address)
+      );
+
+    await sendEmailNotification(
+      "bulk",
+      subject,
+      { text: message, html: htmlMessage },
+      firstReservation.email_address
+    );
+
+    res.status(201).json({
+      success: true,
+      message: `Successfully created ${createdReservations.length} reservations`,
+      reservations: createdReservations,
+    });
+  } catch (err) {
+    console.error("Error creating bulk reservations:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

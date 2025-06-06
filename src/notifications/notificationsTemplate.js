@@ -88,6 +88,40 @@ Happy Camping! 🏕️`,
   </p>
 </div>`,
   },
+
+  bulkConfirmation: {
+    subject: "Multiple Campsite Alerts Confirmed! 🏕️",
+    body: `Your campsite alerts have been successfully created!
+
+We'll monitor availability for the following campsites:
+{campsite_list}
+
+You'll receive individual emails as soon as any of these campsites become available for your dates.
+
+Happy Camping! 🏕️
+
+---
+To stop receiving these alerts, visit: {base_url}/api/reservations/disable-monitoring/{reservation_id}/{email_address}`,
+    html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <h2>Your campsite alerts have been successfully created! 🎉</h2>
+
+  <div style="margin: 20px 0;">
+    <strong>We'll monitor availability for:</strong>
+    <ul>
+      {campsite_list_html}
+    </ul>
+  </div>
+
+  <p>You'll receive individual emails as soon as any of these campsites become available for your dates.</p>
+
+  <p>Happy Camping! 🏕️</p>
+
+  <hr style="border: 1px solid #eee; margin: 20px 0;">
+  <p style="font-size: 12px; color: #666;">
+    To stop receiving these alerts click <a href="{base_url}/api/reservations/disable-monitoring/{reservation_id}/{email_address}">here</a>
+  </p>
+</div>`,
+  },
 };
 
 // Add HTML templates for web responses
@@ -146,5 +180,6 @@ const htmlTemplates = {
 module.exports = {
   confirmation: notificationsTemplate.confirmation,
   availabilityFound: notificationsTemplate.success,
+  bulkConfirmation: notificationsTemplate.bulkConfirmation,
   htmlTemplates,
 };
