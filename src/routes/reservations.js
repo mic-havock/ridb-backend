@@ -161,7 +161,7 @@ router.post("/bulk", async (req, res) => {
     const createdReservations = [];
     const stmt = db.prepare(`
       INSERT INTO reservations (
-        name, email_address, campsite_id, campsite_name, campsite_number, reservation_start_date, reservation_end_date,
+        name, email_address, campsite_id, campsite_name, facility_id, campsite_number, reservation_start_date, reservation_end_date,
         monitoring_active, attempts_made, success_sent
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
@@ -172,6 +172,7 @@ router.post("/bulk", async (req, res) => {
         email_address,
         campsite_id,
         campsite_name,
+        facility_id,
         campsite_number,
         reservation_start_date,
         reservation_end_date,
@@ -185,6 +186,7 @@ router.post("/bulk", async (req, res) => {
         email_address,
         campsite_id,
         campsite_name,
+        facility_id,
         campsite_number,
         reservation_start_date,
         reservation_end_date,
