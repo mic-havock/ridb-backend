@@ -175,7 +175,7 @@ const monitorReservations = async () => {
     const tenMinutesAgo = new Date(
       Date.now() - monitoringIntervalMinutes * 60 * 1000
     );
-    const filteredRows = rows.filter((row) => {
+    let filteredRows = rows.filter((row) => {
       const lastSuccessSentAt = new Date(row.last_success_sent_at);
       return isNaN(lastSuccessSentAt) || lastSuccessSentAt < tenMinutesAgo;
     });
@@ -184,6 +184,51 @@ const monitorReservations = async () => {
       console.log("No reservations to process after filtering.");
       return;
     }
+
+    // Group rows by same month and facility ID
+    const sameMonthFacilityGroups = filteredRows.reduce((groups, row) => {
+      // Parse dates directly from strings (format: YYYY-MM-DD)
+      const [startYear, startMonth] = row.reservation_start_date
+        .split("-")
+        .map(Number);
+      const [endYear, endMonth] = row.reservation_end_date
+        .split("-")
+        .map(Number);
+
+      // Check if start and end dates are in the same month and year
+      if (startMonth === endMonth && startYear === endYear) {
+        const key = `${row.facility_id}_${startYear}_${startMonth}`;
+        if (!groups[key]) {
+          groups[key] = [];
+        }
+        groups[key].push(row);
+      }
+      return groups;
+    }, {});
+
+    // Filter out groups that only have one row
+    const multiRowGroups = Object.entries(sameMonthFacilityGroups).reduce(
+      (acc, [key, rows]) => {
+        if (rows.length > 1) {
+          acc[key] = rows;
+        }
+        return acc;
+      },
+      {}
+    );
+
+    // Log the contents of multiRowGroups
+    console.log(
+      "Same Month Facility Groups (multiple rows only):",
+      JSON.stringify(multiRowGroups, null, 2)
+    );
+
+    // Remove grouped rows from filteredRows
+    const groupedRowIds = new Set();
+    Object.values(multiRowGroups).forEach((group) => {
+      group.forEach((row) => groupedRowIds.add(row.id));
+    });
+    filteredRows = filteredRows.filter((row) => !groupedRowIds.has(row.id));
 
     const batchSize = parseInt(process.env.MONITOR_BATCH_SIZE || "10", 10);
     const batchDelayMs = parseInt(
