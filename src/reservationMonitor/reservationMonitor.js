@@ -3,6 +3,7 @@ const sqlite3 = require("better-sqlite3"); // Use better-sqlite3 for improved pe
 const { checkCampsiteAvailability } = require("../routes/campsites.js"); // Import availability check function
 const { sendEmailNotification } = require("../notifications/emails.js"); // Import the sendEmailNotification function
 const notificationsTemplates = require("../notifications/notificationsTemplate.js");
+const axios = require("axios");
 
 // Path to your database
 const db = sqlite3("./reservations.db");
@@ -152,6 +153,49 @@ const processBatches = async (array, batchSize, delayMs, processFn) => {
   return results;
 };
 
+/**
+ * Groups reservations by facility ID and month
+ * @param {Array<Object>} rows - Array of reservation rows
+ * @returns {Map<string, Array<Object>>} - Map of grouped reservations
+ */
+const groupReservationsByFacilityAndMonth = (rows) => {
+  const groups = new Map();
+
+  for (const row of rows) {
+    try {
+      // Parse dates directly from strings (format: YYYY-MM-DD)
+      const [startYear, startMonth] = row.reservation_start_date
+        .split("-")
+        .map(Number);
+      const [endYear, endMonth] = row.reservation_end_date
+        .split("-")
+        .map(Number);
+
+      // Validate date components
+      if (!startYear || !startMonth || !endYear || !endMonth) {
+        console.warn(`Invalid date format for reservation ${row.id}:`, {
+          startDate: row.reservation_start_date,
+          endDate: row.reservation_end_date,
+        });
+        continue;
+      }
+
+      // Check if start and end dates are in the same month and year
+      if (startMonth === endMonth && startYear === endYear) {
+        const key = `${row.facility_id}_${startYear}_${startMonth}`;
+        if (!groups.has(key)) {
+          groups.set(key, []);
+        }
+        groups.get(key).push(row);
+      }
+    } catch (error) {
+      console.error(`Error processing reservation ${row.id}:`, error);
+    }
+  }
+
+  return groups;
+};
+
 // Monitoring Logic
 const monitorReservations = async () => {
   try {
@@ -167,6 +211,9 @@ const monitorReservations = async () => {
       return;
     }
 
+    console.log(`\n=== Starting Monitoring Cycle ===`);
+    console.log(`Total active reservations: ${rows.length}`);
+
     // Filter out rows where last_success_sent_at is less than 10 minutes ago
     const monitoringIntervalMinutes = parseInt(
       process.env.MONITOR_INTERVAL_MINUTES || "10",
@@ -180,54 +227,200 @@ const monitorReservations = async () => {
       return isNaN(lastSuccessSentAt) || lastSuccessSentAt < tenMinutesAgo;
     });
 
+    console.log(`Reservations after time filter: ${filteredRows.length}`);
+    console.log(
+      `Filtered out ${
+        rows.length - filteredRows.length
+      } reservations due to recent success notifications`
+    );
+
     if (filteredRows.length === 0) {
       console.log("No reservations to process after filtering.");
       return;
     }
 
     // Group rows by same month and facility ID
-    const sameMonthFacilityGroups = filteredRows.reduce((groups, row) => {
-      // Parse dates directly from strings (format: YYYY-MM-DD)
-      const [startYear, startMonth] = row.reservation_start_date
-        .split("-")
-        .map(Number);
-      const [endYear, endMonth] = row.reservation_end_date
-        .split("-")
-        .map(Number);
-
-      // Check if start and end dates are in the same month and year
-      if (startMonth === endMonth && startYear === endYear) {
-        const key = `${row.facility_id}_${startYear}_${startMonth}`;
-        if (!groups[key]) {
-          groups[key] = [];
-        }
-        groups[key].push(row);
-      }
-      return groups;
-    }, {});
+    const sameMonthFacilityGroups =
+      groupReservationsByFacilityAndMonth(filteredRows);
+    console.log(`\n=== Grouping Results ===`);
+    console.log(`Total groups formed: ${sameMonthFacilityGroups.size}`);
 
     // Filter out groups that only have one row
-    const multiRowGroups = Object.entries(sameMonthFacilityGroups).reduce(
-      (acc, [key, rows]) => {
-        if (rows.length > 1) {
-          acc[key] = rows;
-        }
-        return acc;
-      },
-      {}
+    const multiRowGroups = new Map(
+      Array.from(sameMonthFacilityGroups.entries()).filter(
+        ([_, rows]) => rows.length > 1
+      )
     );
+
+    console.log(`Groups with multiple rows: ${multiRowGroups.size}`);
+    console.log(
+      `Groups with single rows: ${
+        sameMonthFacilityGroups.size - multiRowGroups.size
+      }`
+    );
+
+    // Log details of each multi-row group
+    console.log("\n=== Multi-Row Groups Details ===");
+    for (const [key, rows] of multiRowGroups.entries()) {
+      console.log(`\nGroup ${key}:`);
+      console.log(`Number of reservations: ${rows.length}`);
+      console.log("Reservation IDs:", rows.map((r) => r.id).join(", "));
+      console.log("Campsite IDs:", rows.map((r) => r.campsite_id).join(", "));
+      console.log(
+        "Date ranges:",
+        rows
+          .map(
+            (r) => `${r.reservation_start_date} to ${r.reservation_end_date}`
+          )
+          .join("\n")
+      );
+    }
+
+    // Process multi-row groups
+    for (const [key, rows] of multiRowGroups.entries()) {
+      try {
+        console.log(
+          `\nProcessing group ${key} with ${rows.length} reservations`
+        );
+
+        // Extract facility ID and month from key (format: facilityId_year_month)
+        const [facilityId, year, month] = key.split("_");
+        console.log(
+          `Facility ID: ${facilityId}, Year: ${year}, Month: ${month}`
+        );
+
+        // Construct start date for the month (first day of month)
+        const startDate = `${year}-${month.padStart(2, "0")}-01T00:00:00.000Z`;
+        console.log(`Fetching availability for start date: ${startDate}`);
+
+        // Get availability data for the entire month
+        const availabilityData = await axios.get(
+          `http://localhost:3000/api/campsites/${facilityId}/availability?startDate=${startDate}`
+        );
+        console.log(`API Response Status: ${availabilityData.status}`);
+        console.log(
+          `Received availability data for ${
+            Object.keys(availabilityData.data.campsites).length
+          } campsites`
+        );
+
+        // Process each row in the group
+        for (const row of rows) {
+          console.log(`\nChecking availability for reservation ID: ${row.id}`);
+          console.log(`Campsite ID: ${row.campsite_id}`);
+          console.log(
+            `Date range: ${row.reservation_start_date} to ${row.reservation_end_date}`
+          );
+
+          const startDate = new Date(row.reservation_start_date);
+          const endDate = new Date(row.reservation_end_date);
+
+          // Check if all dates in the range are available
+          let isAvailable = true;
+          for (
+            let d = new Date(startDate);
+            d <= endDate;
+            d.setDate(d.getDate() + 1)
+          ) {
+            const dateStr = d.toISOString().split("T")[0] + "T00:00:00Z";
+            const campsiteData =
+              availabilityData.data.campsites[row.campsite_id];
+
+            if (!campsiteData) {
+              console.log(
+                `No availability data found for campsite ${row.campsite_id}`
+              );
+              isAvailable = false;
+              break;
+            }
+
+            const availability = campsiteData.availabilities[dateStr];
+            console.log(`Date ${dateStr}: ${availability}`);
+
+            if (availability !== "Available") {
+              console.log(`Date ${dateStr} is not available (${availability})`);
+              isAvailable = false;
+              break;
+            }
+          }
+
+          if (isAvailable) {
+            console.log(
+              `\n🎉 ALERT: Campsite ${row.campsite_id} is available for the entire date range!`
+            );
+
+            // Get templates from the templates file
+            let subject = notificationsTemplates.availabilityFound.subject;
+            let message = notificationsTemplates.availabilityFound.body;
+            let htmlMessage = notificationsTemplates.availabilityFound.html;
+
+            // Replace placeholders with actual values
+            subject = subject
+              .replace("{campsite_name}", row.campsite_name)
+              .replace("{campsite_number}", row.campsite_number);
+
+            message = message
+              .replace("{campsite_name}", row.campsite_name)
+              .replace("{campsite_number}", row.campsite_number)
+              .replace("{campsite_id}", row.campsite_id)
+              .replace("{start_date}", row.reservation_start_date)
+              .replace("{end_date}", row.reservation_end_date)
+              .replace("{base_url}", process.env.EXTERNAL_BASE_URL)
+              .replace("{reservation_id}", row.id)
+              .replace(
+                "{email_address}",
+                encodeURIComponent(row.email_address)
+              );
+
+            htmlMessage = htmlMessage
+              .replace("{campsite_name}", row.campsite_name)
+              .replace("{campsite_number}", row.campsite_number)
+              .replace("{campsite_id}", row.campsite_id)
+              .replace("{start_date}", row.reservation_start_date)
+              .replace("{end_date}", row.reservation_end_date)
+              .replace("{base_url}", process.env.EXTERNAL_BASE_URL)
+              .replace("{reservation_id}", row.id)
+              .replace(
+                "{email_address}",
+                encodeURIComponent(row.email_address)
+              );
+
+            await sendEmailNotification(
+              row.campsite_id,
+              subject,
+              { text: message, html: htmlMessage },
+              row.email_address
+            );
+
+            // Increment success_sent counter and update timestamps
+            db.prepare(
+              "UPDATE reservations SET success_sent = success_sent + 1, last_success_sent_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+            ).run(row.id);
+          }
+
+          // Increment attempts made
+          db.prepare(
+            "UPDATE reservations SET attempts_made = attempts_made + 1 WHERE id = ?"
+          ).run(row.id);
+        }
+      } catch (error) {
+        console.error(`Error processing group ${key}:`, error.message);
+      }
+    }
 
     // Log the contents of multiRowGroups
     console.log(
       "Same Month Facility Groups (multiple rows only):",
-      JSON.stringify(multiRowGroups, null, 2)
+      Object.fromEntries(multiRowGroups)
     );
 
     // Remove grouped rows from filteredRows
     const groupedRowIds = new Set();
-    Object.values(multiRowGroups).forEach((group) => {
-      group.forEach((row) => groupedRowIds.add(row.id));
-    });
+    for (const rows of multiRowGroups.values()) {
+      for (const row of rows) {
+        groupedRowIds.add(row.id);
+      }
+    }
     filteredRows = filteredRows.filter((row) => !groupedRowIds.has(row.id));
 
     const batchSize = parseInt(process.env.MONITOR_BATCH_SIZE || "10", 10);
