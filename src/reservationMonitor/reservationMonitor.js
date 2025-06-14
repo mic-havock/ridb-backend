@@ -414,10 +414,10 @@ const monitorReservations = async () => {
     }
 
     // Log the contents of multiRowGroups
-    console.log(
-      "Same Month Facility Groups (multiple rows only):",
-      Object.fromEntries(multiRowGroups)
-    );
+    // console.log(
+    //   "Same Month Facility Groups (multiple rows only):",
+    //   Object.fromEntries(multiRowGroups)
+    // );
 
     // Remove grouped rows from filteredRows
     const groupedRowIds = new Set();
