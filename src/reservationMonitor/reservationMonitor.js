@@ -8,6 +8,11 @@ const axios = require("axios");
 // Path to your database
 const db = sqlite3("./reservations.db");
 
+// Get available campsite statuses from environment variable
+const AVAILABLE_CAMPSITE_STATUSES = process.env.AVAILABLE_CAMPSITE_STATUSES
+  ? process.env.AVAILABLE_CAMPSITE_STATUSES.split(",")
+  : ["Available", "Open"]; // Default if not set
+
 /**
  * Process a batch of reservations with throttling
  * @param {Array} batch - Array of reservation records to process
@@ -260,21 +265,21 @@ const monitorReservations = async () => {
     );
 
     // Log details of each multi-row group
-    console.log("\n=== Multi-Row Groups Details ===");
-    for (const [key, rows] of multiRowGroups.entries()) {
-      console.log(`\nGroup ${key}:`);
-      console.log(`Number of reservations: ${rows.length}`);
-      console.log("Reservation IDs:", rows.map((r) => r.id).join(", "));
-      console.log("Campsite IDs:", rows.map((r) => r.campsite_id).join(", "));
-      console.log(
-        "Date ranges:",
-        rows
-          .map(
-            (r) => `${r.reservation_start_date} to ${r.reservation_end_date}`
-          )
-          .join("\n")
-      );
-    }
+    // console.log("\n=== Multi-Row Groups Details ===");
+    // for (const [key, rows] of multiRowGroups.entries()) {
+    //   console.log(`\nGroup ${key}:`);
+    //   console.log(`Number of reservations: ${rows.length}`);
+    //   console.log("Reservation IDs:", rows.map((r) => r.id).join(", "));
+    //   console.log("Campsite IDs:", rows.map((r) => r.campsite_id).join(", "));
+    //   console.log(
+    //     "Date ranges:",
+    //     rows
+    //       .map(
+    //         (r) => `${r.reservation_start_date} to ${r.reservation_end_date}`
+    //       )
+    //       .join("\n")
+    //   );
+    // }
 
     // Process multi-row groups
     for (const [key, rows] of multiRowGroups.entries()) {
@@ -337,7 +342,7 @@ const monitorReservations = async () => {
             const availability = campsiteData.availabilities[dateStr];
             console.log(`Date ${dateStr}: ${availability}`);
 
-            if (availability !== "Available") {
+            if (!AVAILABLE_CAMPSITE_STATUSES.includes(availability)) {
               console.log(`Date ${dateStr} is not available (${availability})`);
               isAvailable = false;
               break;
