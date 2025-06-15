@@ -232,7 +232,7 @@ const monitorReservations = async () => {
       return isNaN(lastSuccessSentAt) || lastSuccessSentAt < tenMinutesAgo;
     });
 
-    console.log(`Reservations after time filter: ${filteredRows.length}`);
+    console.log(`Single reservations to process: ${filteredRows.length}`);
     console.log(
       `Filtered out ${
         rows.length - filteredRows.length
@@ -240,7 +240,7 @@ const monitorReservations = async () => {
     );
 
     if (filteredRows.length === 0) {
-      console.log("No reservations to process after filtering.");
+      console.log("No single reservations to process after filtering.");
       return;
     }
 
@@ -248,7 +248,9 @@ const monitorReservations = async () => {
     const sameMonthFacilityGroups =
       groupReservationsByFacilityAndMonth(filteredRows);
     console.log(`\n=== Grouping Results ===`);
-    console.log(`Total groups formed: ${sameMonthFacilityGroups.size}`);
+    console.log(
+      `Total facility-month groups formed: ${sameMonthFacilityGroups.size}`
+    );
 
     // Filter out groups that only have one row
     const multiRowGroups = new Map(
@@ -257,35 +259,18 @@ const monitorReservations = async () => {
       )
     );
 
-    console.log(`Groups with multiple rows: ${multiRowGroups.size}`);
+    console.log(`Groups with multiple reservations: ${multiRowGroups.size}`);
     console.log(
-      `Groups with single rows: ${
+      `Groups with single reservations: ${
         sameMonthFacilityGroups.size - multiRowGroups.size
       }`
     );
-
-    // Log details of each multi-row group
-    // console.log("\n=== Multi-Row Groups Details ===");
-    // for (const [key, rows] of multiRowGroups.entries()) {
-    //   console.log(`\nGroup ${key}:`);
-    //   console.log(`Number of reservations: ${rows.length}`);
-    //   console.log("Reservation IDs:", rows.map((r) => r.id).join(", "));
-    //   console.log("Campsite IDs:", rows.map((r) => r.campsite_id).join(", "));
-    //   console.log(
-    //     "Date ranges:",
-    //     rows
-    //       .map(
-    //         (r) => `${r.reservation_start_date} to ${r.reservation_end_date}`
-    //       )
-    //       .join("\n")
-    //   );
-    // }
 
     // Process multi-row groups
     for (const [key, rows] of multiRowGroups.entries()) {
       try {
         console.log(
-          `\nProcessing group ${key} with ${rows.length} reservations`
+          `\nProcessing facility-month group ${key} with ${rows.length} reservations`
         );
 
         // Extract facility ID and month from key (format: facilityId_year_month)
@@ -307,14 +292,12 @@ const monitorReservations = async () => {
           console.log(
             `Received availability data for ${
               Object.keys(availabilityData.data.campsites).length
-            } campsites`
+            } campsites in facility ${facilityId}`
           );
 
           // Process each row in the group
           for (const row of rows) {
-            console.log(
-              `\nChecking availability for reservation ID: ${row.id}`
-            );
+            console.log(`\nChecking group reservation ID: ${row.id}`);
             console.log(`Campsite ID: ${row.campsite_id}`);
             console.log(
               `Date range: ${row.reservation_start_date} to ${row.reservation_end_date}`
@@ -433,12 +416,6 @@ const monitorReservations = async () => {
       }
     }
 
-    // Log the contents of multiRowGroups
-    // console.log(
-    //   "Same Month Facility Groups (multiple rows only):",
-    //   Object.fromEntries(multiRowGroups)
-    // );
-
     // Remove grouped rows from filteredRows
     const groupedRowIds = new Set();
     for (const rows of multiRowGroups.values()) {
@@ -455,7 +432,7 @@ const monitorReservations = async () => {
     );
 
     console.log(
-      `Processing ${filteredRows.length} reservations in batches of ${batchSize} with ${batchDelayMs}ms delay between batches`
+      `Processing ${filteredRows.length} single reservations in batches of ${batchSize} with ${batchDelayMs}ms delay between batches`
     );
 
     // Process records in batches with delay between batches
@@ -467,7 +444,11 @@ const monitorReservations = async () => {
     );
 
     console.log("Monitoring cycle complete", {
-      processedReservations: filteredRows.length,
+      processedSingleReservations: filteredRows.length,
+      processedGroupReservations: Array.from(multiRowGroups.values()).reduce(
+        (sum, rows) => sum + rows.length,
+        0
+      ),
     });
     return results;
   } catch (error) {
