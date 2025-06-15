@@ -299,114 +299,134 @@ const monitorReservations = async () => {
         console.log(`Fetching availability for start date: ${startDate}`);
 
         // Get availability data for the entire month
-        const availabilityData = await axios.get(
-          `http://localhost:3000/api/campsites/${facilityId}/availability?startDate=${startDate}`
-        );
-        console.log(`API Response Status: ${availabilityData.status}`);
-        console.log(
-          `Received availability data for ${
-            Object.keys(availabilityData.data.campsites).length
-          } campsites`
-        );
-
-        // Process each row in the group
-        for (const row of rows) {
-          console.log(`\nChecking availability for reservation ID: ${row.id}`);
-          console.log(`Campsite ID: ${row.campsite_id}`);
+        try {
+          const availabilityData = await axios.get(
+            `http://localhost:3000/api/campsites/${facilityId}/availability?startDate=${startDate}`
+          );
+          console.log(`API Response Status: ${availabilityData.status}`);
           console.log(
-            `Date range: ${row.reservation_start_date} to ${row.reservation_end_date}`
+            `Received availability data for ${
+              Object.keys(availabilityData.data.campsites).length
+            } campsites`
           );
 
-          const startDate = new Date(row.reservation_start_date);
-          const endDate = new Date(row.reservation_end_date);
-
-          // Check if all dates in the range are available
-          let isAvailable = true;
-          for (
-            let d = new Date(startDate);
-            d <= endDate;
-            d.setDate(d.getDate() + 1)
-          ) {
-            const dateStr = d.toISOString().split("T")[0] + "T00:00:00Z";
-            const campsiteData =
-              availabilityData.data.campsites[row.campsite_id];
-
-            if (!campsiteData) {
-              console.log(
-                `No availability data found for campsite ${row.campsite_id}`
-              );
-              isAvailable = false;
-              break;
-            }
-
-            const availability = campsiteData.availabilities[dateStr];
-            console.log(`Date ${dateStr}: ${availability}`);
-
-            if (!AVAILABLE_CAMPSITE_STATUSES.includes(availability)) {
-              console.log(`Date ${dateStr} is not available (${availability})`);
-              isAvailable = false;
-              break;
-            }
-          }
-
-          if (isAvailable) {
+          // Process each row in the group
+          for (const row of rows) {
             console.log(
-              `\n🎉 ALERT: Campsite ${row.campsite_id} is available for the entire date range!`
+              `\nChecking availability for reservation ID: ${row.id}`
+            );
+            console.log(`Campsite ID: ${row.campsite_id}`);
+            console.log(
+              `Date range: ${row.reservation_start_date} to ${row.reservation_end_date}`
             );
 
-            // Get templates from the templates file
-            let subject = notificationsTemplates.availabilityFound.subject;
-            let message = notificationsTemplates.availabilityFound.body;
-            let htmlMessage = notificationsTemplates.availabilityFound.html;
+            const startDate = new Date(row.reservation_start_date);
+            const endDate = new Date(row.reservation_end_date);
 
-            // Replace placeholders with actual values
-            subject = subject
-              .replace("{campsite_name}", row.campsite_name)
-              .replace("{campsite_number}", row.campsite_number);
+            // Check if all dates in the range are available
+            let isAvailable = true;
+            for (
+              let d = new Date(startDate);
+              d <= endDate;
+              d.setDate(d.getDate() + 1)
+            ) {
+              const dateStr = d.toISOString().split("T")[0] + "T00:00:00Z";
+              const campsiteData =
+                availabilityData.data.campsites[row.campsite_id];
 
-            message = message
-              .replace("{campsite_name}", row.campsite_name)
-              .replace("{campsite_number}", row.campsite_number)
-              .replace("{campsite_id}", row.campsite_id)
-              .replace("{start_date}", row.reservation_start_date)
-              .replace("{end_date}", row.reservation_end_date)
-              .replace("{base_url}", process.env.EXTERNAL_BASE_URL)
-              .replace("{reservation_id}", row.id)
-              .replace(
-                "{email_address}",
-                encodeURIComponent(row.email_address)
+              if (!campsiteData) {
+                console.log(
+                  `No availability data found for campsite ${row.campsite_id}`
+                );
+                isAvailable = false;
+                break;
+              }
+
+              const availability = campsiteData.availabilities[dateStr];
+              console.log(`Date ${dateStr}: ${availability}`);
+
+              if (!AVAILABLE_CAMPSITE_STATUSES.includes(availability)) {
+                console.log(
+                  `Date ${dateStr} is not available (${availability})`
+                );
+                isAvailable = false;
+                break;
+              }
+            }
+
+            if (isAvailable) {
+              console.log(
+                `\n🎉 ALERT: Campsite ${row.campsite_id} is available for the entire date range!`
               );
 
-            htmlMessage = htmlMessage
-              .replace("{campsite_name}", row.campsite_name)
-              .replace("{campsite_number}", row.campsite_number)
-              .replace("{campsite_id}", row.campsite_id)
-              .replace("{start_date}", row.reservation_start_date)
-              .replace("{end_date}", row.reservation_end_date)
-              .replace("{base_url}", process.env.EXTERNAL_BASE_URL)
-              .replace("{reservation_id}", row.id)
-              .replace(
-                "{email_address}",
-                encodeURIComponent(row.email_address)
+              // Get templates from the templates file
+              let subject = notificationsTemplates.availabilityFound.subject;
+              let message = notificationsTemplates.availabilityFound.body;
+              let htmlMessage = notificationsTemplates.availabilityFound.html;
+
+              // Replace placeholders with actual values
+              subject = subject
+                .replace("{campsite_name}", row.campsite_name)
+                .replace("{campsite_number}", row.campsite_number);
+
+              message = message
+                .replace("{campsite_name}", row.campsite_name)
+                .replace("{campsite_number}", row.campsite_number)
+                .replace("{campsite_id}", row.campsite_id)
+                .replace("{start_date}", row.reservation_start_date)
+                .replace("{end_date}", row.reservation_end_date)
+                .replace("{base_url}", process.env.EXTERNAL_BASE_URL)
+                .replace("{reservation_id}", row.id)
+                .replace(
+                  "{email_address}",
+                  encodeURIComponent(row.email_address)
+                );
+
+              htmlMessage = htmlMessage
+                .replace("{campsite_name}", row.campsite_name)
+                .replace("{campsite_number}", row.campsite_number)
+                .replace("{campsite_id}", row.campsite_id)
+                .replace("{start_date}", row.reservation_start_date)
+                .replace("{end_date}", row.reservation_end_date)
+                .replace("{base_url}", process.env.EXTERNAL_BASE_URL)
+                .replace("{reservation_id}", row.id)
+                .replace(
+                  "{email_address}",
+                  encodeURIComponent(row.email_address)
+                );
+
+              await sendEmailNotification(
+                row.campsite_id,
+                subject,
+                { text: message, html: htmlMessage },
+                row.email_address
               );
 
-            await sendEmailNotification(
-              row.campsite_id,
-              subject,
-              { text: message, html: htmlMessage },
-              row.email_address
-            );
+              // Increment success_sent counter and update timestamps
+              db.prepare(
+                "UPDATE reservations SET success_sent = success_sent + 1, last_success_sent_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+              ).run(row.id);
+            }
 
-            // Increment success_sent counter and update timestamps
+            // Increment attempts made
             db.prepare(
-              "UPDATE reservations SET success_sent = success_sent + 1, last_success_sent_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+              "UPDATE reservations SET attempts_made = attempts_made + 1 WHERE id = ?"
             ).run(row.id);
           }
-
-          // Increment attempts made
-          db.prepare(
-            "UPDATE reservations SET attempts_made = attempts_made + 1 WHERE id = ?"
-          ).run(row.id);
+        } catch (error) {
+          if (
+            error.response &&
+            (error.response.status === 500 || error.response.status === 429)
+          ) {
+            console.log(
+              `Received ${error.response.status} status code. Taking a break for ${monitoringIntervalMinutes} minutes...`
+            );
+            await new Promise((resolve) =>
+              setTimeout(resolve, monitoringIntervalMinutes * 60 * 1000)
+            );
+            throw error; // Re-throw to be caught by outer catch block
+          }
+          throw error; // Re-throw other errors
         }
       } catch (error) {
         console.error(`Error processing group ${key}:`, error.message);
