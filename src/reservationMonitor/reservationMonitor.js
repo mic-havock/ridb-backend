@@ -203,6 +203,7 @@ const groupReservationsByFacilityAndMonth = (rows) => {
 
 // Monitoring Logic
 const monitorReservations = async () => {
+  const startTime = Date.now();
   try {
     // Fetch only necessary columns (e.g., id) for active monitoring records
     const rows = db
@@ -441,10 +442,16 @@ const monitorReservations = async () => {
         (sum, rows) => sum + rows.length,
         0
       ),
+      durationSeconds: ((Date.now() - startTime) / 1000).toFixed(2),
     });
     return results;
   } catch (error) {
     console.log("Error during reservation monitoring:", error.message);
+    console.log(
+      "Monitoring cycle failed after",
+      ((Date.now() - startTime) / 1000).toFixed(2),
+      "seconds"
+    );
   }
 };
 
