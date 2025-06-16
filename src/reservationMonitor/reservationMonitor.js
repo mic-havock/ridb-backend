@@ -443,12 +443,14 @@ const monitorReservations = async () => {
         0
       ),
       durationSeconds: ((Date.now() - startTime) / 1000).toFixed(2),
+      timestamp: new Date().toISOString(),
     });
     return results;
   } catch (error) {
-    console.log("Error during reservation monitoring:", error.message);
+    const now = new Date().toISOString();
+    console.log(`[${now}] Error during reservation monitoring:`, error.message);
     console.log(
-      "Monitoring cycle failed after",
+      `[${now}] Monitoring cycle failed after`,
       ((Date.now() - startTime) / 1000).toFixed(2),
       "seconds"
     );

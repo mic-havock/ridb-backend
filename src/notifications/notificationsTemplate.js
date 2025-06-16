@@ -101,7 +101,7 @@ You'll receive individual emails as soon as any of these campsites become availa
 Happy Camping! 🏕️
 
 ---
-To stop receiving these alerts, visit: {base_url}/api/reservations/disable-monitoring/{reservation_id}/{email_address}`,
+To stop receiving these alerts, visit: {base_url}/reservation-management`,
     html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
   <h2>Your campsite alerts have been successfully created! 🎉</h2>
 
@@ -118,7 +118,7 @@ To stop receiving these alerts, visit: {base_url}/api/reservations/disable-monit
 
   <hr style="border: 1px solid #eee; margin: 20px 0;">
   <p style="font-size: 12px; color: #666;">
-    To stop receiving these alerts click <a href="{base_url}/api/reservations/disable-monitoring/{reservation_id}/{email_address}">here</a>
+    To stop receiving these alerts click <a href="{base_url}/reservation-management">here</a>
   </p>
 </div>`,
   },
