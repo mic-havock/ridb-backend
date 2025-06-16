@@ -232,11 +232,10 @@ const monitorReservations = async () => {
       return isNaN(lastSuccessSentAt) || lastSuccessSentAt < tenMinutesAgo;
     });
 
-    console.log(`Single reservations to process: ${filteredRows.length}`);
     console.log(
-      `Filtered out ${
+      `Processing ${filteredRows.length} single reservations (${
         rows.length - filteredRows.length
-      } reservations due to recent success notifications`
+      } filtered due to recent notifications)`
     );
 
     if (filteredRows.length === 0) {
@@ -248,9 +247,7 @@ const monitorReservations = async () => {
     const sameMonthFacilityGroups =
       groupReservationsByFacilityAndMonth(filteredRows);
     console.log(`\n=== Grouping Results ===`);
-    console.log(
-      `Total facility-month groups formed: ${sameMonthFacilityGroups.size}`
-    );
+    console.log(`Total facility-month groups: ${sameMonthFacilityGroups.size}`);
 
     // Filter out groups that only have one row
     const multiRowGroups = new Map(
@@ -259,9 +256,10 @@ const monitorReservations = async () => {
       )
     );
 
-    console.log(`Groups with multiple reservations: ${multiRowGroups.size}`);
     console.log(
-      `Groups with single reservations: ${
+      `Groups with multiple reservations: ${
+        multiRowGroups.size
+      }, single reservations: ${
         sameMonthFacilityGroups.size - multiRowGroups.size
       }`
     );
@@ -269,26 +267,19 @@ const monitorReservations = async () => {
     // Process multi-row groups
     for (const [key, rows] of multiRowGroups.entries()) {
       try {
-        console.log(
-          `\nProcessing facility-month group ${key} with ${rows.length} reservations`
-        );
-
-        // Extract facility ID and month from key (format: facilityId_year_month)
         const [facilityId, year, month] = key.split("_");
         console.log(
-          `Facility ID: ${facilityId}, Year: ${year}, Month: ${month}`
+          `\nProcessing facility ${facilityId} (${year}-${month}) - ${rows.length} reservations`
         );
 
         // Construct start date for the month (first day of month)
         const startDate = `${year}-${month.padStart(2, "0")}-01T00:00:00.000Z`;
-        console.log(`Fetching availability for start date: ${startDate}`);
 
         // Get availability data for the entire month
         try {
           const availabilityData = await axios.get(
             `http://localhost:3000/api/campsites/${facilityId}/availability?startDate=${startDate}`
           );
-          console.log(`API Response Status: ${availabilityData.status}`);
           console.log(
             `Received availability data for ${
               Object.keys(availabilityData.data.campsites).length
@@ -297,12 +288,6 @@ const monitorReservations = async () => {
 
           // Process each row in the group
           for (const row of rows) {
-            console.log(`\nChecking group reservation ID: ${row.id}`);
-            console.log(`Campsite ID: ${row.campsite_id}`);
-            console.log(
-              `Date range: ${row.reservation_start_date} to ${row.reservation_end_date}`
-            );
-
             const startDate = new Date(row.reservation_start_date);
             const endDate = new Date(row.reservation_end_date);
 
@@ -319,18 +304,16 @@ const monitorReservations = async () => {
 
               if (!campsiteData) {
                 console.log(
-                  `No availability data found for campsite ${row.campsite_id}`
+                  `No availability data for campsite ${row.campsite_id}`
                 );
                 isAvailable = false;
                 break;
               }
 
               const availability = campsiteData.availabilities[dateStr];
-              console.log(`Date ${dateStr}: ${availability}`);
-
               if (!AVAILABLE_CAMPSITE_STATUSES.includes(availability)) {
                 console.log(
-                  `Date ${dateStr} is not available (${availability})`
+                  `Campsite ${row.campsite_id} not available on ${dateStr} (${availability})`
                 );
                 isAvailable = false;
                 break;
@@ -339,7 +322,7 @@ const monitorReservations = async () => {
 
             if (isAvailable) {
               console.log(
-                `\n🎉 ALERT: Campsite ${row.campsite_id} is available for the entire date range!`
+                `\n🎉 ALERT: Campsite ${row.campsite_id} available for ${row.reservation_start_date} to ${row.reservation_end_date}`
               );
 
               // Get templates from the templates file
@@ -389,6 +372,10 @@ const monitorReservations = async () => {
               db.prepare(
                 "UPDATE reservations SET success_sent = success_sent + 1, last_success_sent_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
               ).run(row.id);
+
+              console.log(
+                `Notification sent for campsite ${row.campsite_id} to ${row.email_address}`
+              );
             }
 
             // Increment attempts made
@@ -401,18 +388,23 @@ const monitorReservations = async () => {
             error.response &&
             (error.response.status === 500 || error.response.status === 429)
           ) {
+            const monitoringIntervalMinutes = parseInt(
+              process.env.MONITOR_INTERVAL_MINUTES || "10",
+              10
+            );
             console.log(
-              `Received ${error.response.status} status code. Taking a break for ${monitoringIntervalMinutes} minutes...`
+              `Received ${error.response.status} status code. Pausing entire monitoring process for ${monitoringIntervalMinutes} minutes...`
             );
             await new Promise((resolve) =>
               setTimeout(resolve, monitoringIntervalMinutes * 60 * 1000)
             );
-            throw error; // Re-throw to be caught by outer catch block
+            // After the break, restart the monitoring cycle
+            return monitorReservations();
           }
           throw error; // Re-throw other errors
         }
       } catch (error) {
-        console.error(`Error processing group ${key}:`, error.message);
+        console.error(`Error processing facility ${key}:`, error.message);
       }
     }
 
@@ -432,7 +424,7 @@ const monitorReservations = async () => {
     );
 
     console.log(
-      `Processing ${filteredRows.length} single reservations in batches of ${batchSize} with ${batchDelayMs}ms delay between batches`
+      `Processing ${filteredRows.length} single reservations in batches of ${batchSize}`
     );
 
     // Process records in batches with delay between batches
