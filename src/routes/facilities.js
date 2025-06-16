@@ -8,7 +8,7 @@ const RIDB_BASE_URL = process.env.RIDB_BASE_URL;
 const RIDB_API_KEY = process.env.RIDB_API_KEY;
 const SORT = "NAME";
 const ACTIVITY = "CAMPING";
-const LIMIT = 50;
+const LIMIT = 100;
 const OFFSET = 0;
 
 // Endpoint: Get Facility by ID
