@@ -19,8 +19,47 @@ const PORT = process.env.PORT || 3000;
 // Middleware for JSON parsing
 app.use(express.json());
 
-// Enable CORS & allow all origins
-app.use(cors());
+// CORS configuration - explicitly allow production and development origins
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, Postman, or curl)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    // List of allowed origins
+    const allowedOrigins = [
+      "https://kampscout.com",
+      "https://www.kampscout.com",
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "http://127.0.0.1:3000",
+      "http://127.0.0.1:5173",
+    ];
+
+    // Check if the origin is in the allowed list
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      // In development, allow all origins for flexibility
+      if (process.env.NODE_ENV !== "production") {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    }
+  },
+  credentials: true, // Allow cookies and credentials
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  exposedHeaders: ["Content-Range", "X-Content-Range"],
+  maxAge: 86400, // Cache preflight requests for 24 hours
+};
+
+// Enable CORS with explicit configuration
+app.use(cors(corsOptions));
 
 // Use routes
 app.use("/api", facilitiesRouter);
