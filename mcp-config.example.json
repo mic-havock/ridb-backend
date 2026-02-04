@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "ridb-camping": {
+      "command": "node",
+      "args": [
+        "src/mcpServer.js"
+      ],
+      "env": {
+        "RIDB_BASE_URL": "https://ridb.recreation.gov/api/v1",
+        "RIDB_API_KEY": "YOUR_API_KEY_HERE"
+      }
+    }
+  }
+}

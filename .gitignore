@@ -1,6 +1,8 @@
 reservations.db
 .env
 !.env.example
+mcp-config.json
+!mcp-config.example.json
 
 # macOS
 .DS_Store

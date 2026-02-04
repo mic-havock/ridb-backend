@@ -4,13 +4,17 @@
   "main": "index.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "mcp": "node src/mcpServer.js",
+    "mcp:dev": "nodemon src/mcpServer.js",
+    "test:mcp": "node test-mcp.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "RIDB Backend with REST API and Model Context Protocol support for camping facility and reservation management",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.3",
     "axios": "^1.7.9",
     "better-sqlite3": "^11.8.1",
     "cors": "^2.8.5",
