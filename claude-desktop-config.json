@@ -3,7 +3,7 @@
     "ridb-camping": {
       "command": "node",
       "args": [
-        "src/mcpServer.js"
+        "/Users/michaelkovach/Dev/ridb-backend/src/mcpServer.js"
       ]
     }
   }

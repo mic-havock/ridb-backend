@@ -10,13 +10,28 @@ const {
 } = require("@modelcontextprotocol/sdk/types.js");
 const axios = require("axios");
 const dotenv = require("dotenv");
+const path = require("path");
+const fs = require("fs");
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from the project root
+// This ensures .env is found even when the process is spawned from a different directory
+// __dirname is /path/to/ridb-backend/src, so we go up one level to the project root
+const envPath = path.resolve(__dirname, "..", ".env");
+dotenv.config({ path: envPath });
 
 // RIDB API Configuration
 const RIDB_BASE_URL = process.env.RIDB_BASE_URL;
 const RIDB_API_KEY = process.env.RIDB_API_KEY;
+
+// Verify required environment variables
+if (!RIDB_BASE_URL || !RIDB_API_KEY) {
+  console.error("ERROR: Missing required environment variables");
+  console.error(`  RIDB_BASE_URL: ${RIDB_BASE_URL ? "✓" : "✗ MISSING"}`);
+  console.error(`  RIDB_API_KEY: ${RIDB_API_KEY ? "✓" : "✗ MISSING"}`);
+  console.error(`  .env path: ${envPath}`);
+  console.error(`  .env exists: ${fs.existsSync(envPath) ? "yes" : "NO"}`);
+  process.exit(1);
+}
 const AVAILABLE_CAMPSITE_STATUSES = process.env.AVAILABLE_CAMPSITE_STATUSES
   ? process.env.AVAILABLE_CAMPSITE_STATUSES.split(",")
   : ["Available", "Open"];
