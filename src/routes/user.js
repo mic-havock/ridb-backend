@@ -53,13 +53,13 @@ router.patch("/reservations/batch/monitoring", async (req, res) => {
     // Check if any reservations exist for this email
     const existingReservations = db
       .prepare(
-        "SELECT COUNT(*) as count FROM reservations WHERE email_address = ?"
+        "SELECT COUNT(*) as count FROM reservations WHERE email_address = ?",
       )
       .get(email);
 
     if (existingReservations.count === 0) {
       console.log(
-        `[PATCH] /reservations/batch/monitoring - No reservations found for email: ${email}`
+        `[PATCH] /reservations/batch/monitoring - No reservations found for email: ${email}`,
       );
       return res.status(404).json({
         message: "No reservations found for this email address",
@@ -82,7 +82,7 @@ router.patch("/reservations/batch/monitoring", async (req, res) => {
 
       const result = db
         .prepare(
-          `UPDATE reservations SET monitoring_active = ? WHERE id IN (${placeholders}) AND email_address = ?`
+          `UPDATE reservations SET monitoring_active = ? WHERE id IN (${placeholders}) AND email_address = ?`,
         )
         .run(activeBoolean ? 1 : 0, ...ids, email);
 
@@ -93,7 +93,7 @@ router.patch("/reservations/batch/monitoring", async (req, res) => {
 
       const result = db
         .prepare(
-          "UPDATE reservations SET monitoring_active = ? WHERE email_address = ?"
+          "UPDATE reservations SET monitoring_active = ? WHERE email_address = ?",
         )
         .run(activeBoolean ? 1 : 0, email);
 
@@ -101,7 +101,7 @@ router.patch("/reservations/batch/monitoring", async (req, res) => {
     }
 
     console.log(
-      `[PATCH] /reservations/batch/monitoring - Updated ${updateCount} reservations for email: ${email}`
+      `[PATCH] /reservations/batch/monitoring - Updated ${updateCount} reservations for email: ${email}`,
     );
 
     return res.status(200).json({
@@ -113,7 +113,7 @@ router.patch("/reservations/batch/monitoring", async (req, res) => {
   } catch (error) {
     console.error(
       "[PATCH] /reservations/batch/monitoring - Error:",
-      error.message
+      error.message,
     );
     return res.status(500).json({
       message: "Failed to update monitoring status",
@@ -169,7 +169,7 @@ router.get(
         error: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -210,7 +210,7 @@ router.patch(
 
       // Update monitoring status
       db.prepare(
-        "UPDATE reservations SET monitoring_active = ? WHERE id = ?"
+        "UPDATE reservations SET monitoring_active = ? WHERE id = ?",
       ).run(active ? 1 : 0, id);
 
       // Get updated reservation
@@ -228,7 +228,7 @@ router.patch(
         error: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -279,7 +279,7 @@ router.patch(
 
       // Update reservation dates
       db.prepare(
-        "UPDATE reservations SET reservation_start_date = ?, reservation_end_date = ? WHERE id = ?"
+        "UPDATE reservations SET reservation_start_date = ?, reservation_end_date = ? WHERE id = ?",
       ).run(startDate, endDate, id);
 
       // Get updated reservation
@@ -297,7 +297,7 @@ router.patch(
         error: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -336,6 +336,124 @@ router.delete("/reservations/:id", async (req, res) => {
 });
 
 /**
+ * Bulk mark reservations as deleted by the user (soft delete)
+ * @route PATCH /api/user/reservations/batch/user-delete
+ * @param {string} email_address - Email address of the user (required)
+ * @param {Array<number>} ids - Optional array of specific reservation IDs to delete
+ * @returns {Object} - Success message with count of deleted reservations
+ */
+router.patch("/reservations/batch/user-delete", async (req, res) => {
+  console.log("[PATCH] /reservations/batch/user-delete - Request received");
+
+  try {
+    const { email_address, ids } = req.body;
+
+    // Validate email_address is provided
+    if (!email_address) {
+      return res.status(400).json({
+        message: "Email address is required",
+        receivedBody: req.body,
+      });
+    }
+
+    // Check if any reservations exist for this email
+    const existingReservations = db
+      .prepare(
+        "SELECT COUNT(*) as count FROM reservations WHERE email_address = ?",
+      )
+      .get(email_address);
+
+    // Also check for active (non-deleted) reservations
+    const activeReservations = db
+      .prepare(
+        "SELECT COUNT(*) as count FROM reservations WHERE email_address = ? AND user_deleted = 0",
+      )
+      .get(email_address);
+
+    console.log(
+      `[DEBUG] Email: ${email_address}, Total reservations: ${existingReservations.count}, Active reservations: ${activeReservations.count}`
+    );
+
+    if (existingReservations.count === 0) {
+      console.log(
+        `[PATCH] /reservations/batch/user-delete - No reservations found for email: ${email_address}`,
+      );
+      return res.status(404).json({
+        message: "No reservations found for this email address",
+        email: email_address,
+        debug: {
+          totalCount: existingReservations.count,
+          activeCount: activeReservations.count,
+        },
+      });
+    }
+
+    if (activeReservations.count === 0) {
+      console.log(
+        `[PATCH] /reservations/batch/user-delete - All reservations already marked as deleted for email: ${email_address}`,
+      );
+      return res.status(200).json({
+        message: "All reservations are already marked as deleted",
+        count: 0,
+        email: email_address,
+      });
+    }
+
+    let updateCount = 0;
+
+    if (ids && Array.isArray(ids) && ids.length > 0) {
+      // Soft delete specific reservations for this email
+      const placeholders = ids.map(() => "?").join(",");
+      console.log("Marking specific reservations as deleted with IDs:", ids);
+
+      const result = db
+        .prepare(
+          `UPDATE reservations SET user_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id IN (${placeholders}) AND email_address = ? AND user_deleted = 0`,
+        )
+        .run(...ids, email_address);
+
+      updateCount = result.changes;
+    } else {
+      // Soft delete all active reservations for this email
+      console.log(
+        "Marking all active reservations as deleted for email:",
+        email_address,
+      );
+
+      const result = db
+        .prepare(
+          "UPDATE reservations SET user_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE email_address = ? AND user_deleted = 0",
+        )
+        .run(email_address);
+
+      updateCount = result.changes;
+    }
+
+    console.log(
+      `[PATCH] /reservations/batch/user-delete - Marked ${updateCount} reservations as deleted for email: ${email_address}`,
+    );
+
+    return res.status(200).json({
+      message: `${updateCount} reservation${
+        updateCount !== 1 ? "s" : ""
+      } successfully marked as deleted`,
+      count: updateCount,
+      email: email_address,
+    });
+  } catch (error) {
+    console.error(
+      "[PATCH] /reservations/batch/user-delete - Error:",
+      error.message,
+    );
+    return res.status(500).json({
+      message: "Failed to mark reservations as deleted",
+      error: error.message,
+      stack: error.stack,
+    });
+  }
+});
+
+/**
  * Mark a reservation as deleted by the user (soft delete)
  * @route PATCH /api/user/reservations/:id/user-delete
  * @param {number} id - Reservation ID
@@ -368,7 +486,7 @@ router.patch("/reservations/:id/user-delete", async (req, res) => {
     // Update user_deleted status
     const result = db
       .prepare(
-        "UPDATE reservations SET user_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+        "UPDATE reservations SET user_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
       )
       .run(id);
 
@@ -383,7 +501,7 @@ router.patch("/reservations/:id/user-delete", async (req, res) => {
   } catch (error) {
     console.error(
       "[PATCH] /reservations/:id/user-delete - Error:",
-      error.message
+      error.message,
     );
     return res.status(500).json({
       message: "Failed to mark reservation as deleted",
@@ -419,25 +537,25 @@ router.get(
       // Get user statistics
       const totalReservations = db
         .prepare(
-          "SELECT COUNT(*) as count FROM reservations WHERE email_address = ?"
+          "SELECT COUNT(*) as count FROM reservations WHERE email_address = ?",
         )
         .get(email);
 
       const activeMonitoring = db
         .prepare(
-          "SELECT COUNT(*) as count FROM reservations WHERE email_address = ? AND monitoring_active = 1"
+          "SELECT COUNT(*) as count FROM reservations WHERE email_address = ? AND monitoring_active = 1",
         )
         .get(email);
 
       const successfulNotifications = db
         .prepare(
-          "SELECT SUM(success_sent) as count FROM reservations WHERE email_address = ?"
+          "SELECT SUM(success_sent) as count FROM reservations WHERE email_address = ?",
         )
         .get(email);
 
       const totalAttempts = db
         .prepare(
-          "SELECT SUM(attempts_made) as count FROM reservations WHERE email_address = ?"
+          "SELECT SUM(attempts_made) as count FROM reservations WHERE email_address = ?",
         )
         .get(email);
 
@@ -456,7 +574,7 @@ router.get(
         error: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -486,25 +604,25 @@ router.get(
       // Get user statistics for active reservations only
       const totalReservations = db
         .prepare(
-          "SELECT COUNT(*) as count FROM reservations WHERE email_address = ? AND user_deleted = 0"
+          "SELECT COUNT(*) as count FROM reservations WHERE email_address = ? AND user_deleted = 0",
         )
         .get(email);
 
       const activeMonitoring = db
         .prepare(
-          "SELECT COUNT(*) as count FROM reservations WHERE email_address = ? AND monitoring_active = 1 AND user_deleted = 0"
+          "SELECT COUNT(*) as count FROM reservations WHERE email_address = ? AND monitoring_active = 1 AND user_deleted = 0",
         )
         .get(email);
 
       const successfulNotifications = db
         .prepare(
-          "SELECT SUM(success_sent) as count FROM reservations WHERE email_address = ? AND user_deleted = 0"
+          "SELECT SUM(success_sent) as count FROM reservations WHERE email_address = ? AND user_deleted = 0",
         )
         .get(email);
 
       const totalAttempts = db
         .prepare(
-          "SELECT SUM(attempts_made) as count FROM reservations WHERE email_address = ? AND user_deleted = 0"
+          "SELECT SUM(attempts_made) as count FROM reservations WHERE email_address = ? AND user_deleted = 0",
         )
         .get(email);
 
@@ -523,7 +641,7 @@ router.get(
         error: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -553,7 +671,7 @@ router.get(
       // Fetch active reservations for the specified email
       const reservations = db
         .prepare(
-          "SELECT * FROM reservations WHERE email_address = ? AND user_deleted = 0"
+          "SELECT * FROM reservations WHERE email_address = ? AND user_deleted = 0",
         )
         .all(email);
 
@@ -568,7 +686,7 @@ router.get(
         error: error.message,
       });
     }
-  }
+  },
 );
 
 module.exports = router;
