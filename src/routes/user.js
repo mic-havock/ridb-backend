@@ -115,11 +115,14 @@ router.patch("/reservations/batch/monitoring", async (req, res) => {
       "[PATCH] /reservations/batch/monitoring - Error:",
       error.message,
     );
-    return res.status(500).json({
+    const response = {
       message: "Failed to update monitoring status",
       error: error.message,
-      stack: error.stack,
-    });
+    };
+    if (process.env.NODE_ENV === "development") {
+      response.stack = error.stack;
+    }
+    return res.status(500).json(response);
   }
 });
 
@@ -445,11 +448,14 @@ router.patch("/reservations/batch/user-delete", async (req, res) => {
       "[PATCH] /reservations/batch/user-delete - Error:",
       error.message,
     );
-    return res.status(500).json({
+    const response = {
       message: "Failed to mark reservations as deleted",
       error: error.message,
-      stack: error.stack,
-    });
+    };
+    if (process.env.NODE_ENV === "development") {
+      response.stack = error.stack;
+    }
+    return res.status(500).json(response);
   }
 });
 
@@ -534,38 +540,26 @@ router.get(
 
       const { email } = req.query;
 
-      // Get user statistics
-      const totalReservations = db
+      // Get user statistics in a single query
+      const stats = db
         .prepare(
-          "SELECT COUNT(*) as count FROM reservations WHERE email_address = ?",
-        )
-        .get(email);
-
-      const activeMonitoring = db
-        .prepare(
-          "SELECT COUNT(*) as count FROM reservations WHERE email_address = ? AND monitoring_active = 1",
-        )
-        .get(email);
-
-      const successfulNotifications = db
-        .prepare(
-          "SELECT SUM(success_sent) as count FROM reservations WHERE email_address = ?",
-        )
-        .get(email);
-
-      const totalAttempts = db
-        .prepare(
-          "SELECT SUM(attempts_made) as count FROM reservations WHERE email_address = ?",
+          `SELECT
+            COUNT(*) as totalReservations,
+            SUM(CASE WHEN monitoring_active = 1 THEN 1 ELSE 0 END) as activeMonitoring,
+            SUM(success_sent) as successfulNotifications,
+            SUM(attempts_made) as totalAttempts
+          FROM reservations
+          WHERE email_address = ?`
         )
         .get(email);
 
       return res.status(200).json({
         message: "User statistics retrieved successfully",
         stats: {
-          totalReservations: totalReservations.count,
-          activeMonitoring: activeMonitoring.count,
-          successfulNotifications: successfulNotifications.count || 0,
-          totalAttempts: totalAttempts.count || 0,
+          totalReservations: stats.totalReservations,
+          activeMonitoring: stats.activeMonitoring || 0,
+          successfulNotifications: stats.successfulNotifications || 0,
+          totalAttempts: stats.totalAttempts || 0,
         },
       });
     } catch (error) {
@@ -601,38 +595,26 @@ router.get(
 
       const { email } = req.query;
 
-      // Get user statistics for active reservations only
-      const totalReservations = db
+      // Get user statistics for active reservations in a single query
+      const stats = db
         .prepare(
-          "SELECT COUNT(*) as count FROM reservations WHERE email_address = ? AND user_deleted = 0",
-        )
-        .get(email);
-
-      const activeMonitoring = db
-        .prepare(
-          "SELECT COUNT(*) as count FROM reservations WHERE email_address = ? AND monitoring_active = 1 AND user_deleted = 0",
-        )
-        .get(email);
-
-      const successfulNotifications = db
-        .prepare(
-          "SELECT SUM(success_sent) as count FROM reservations WHERE email_address = ? AND user_deleted = 0",
-        )
-        .get(email);
-
-      const totalAttempts = db
-        .prepare(
-          "SELECT SUM(attempts_made) as count FROM reservations WHERE email_address = ? AND user_deleted = 0",
+          `SELECT
+            COUNT(*) as totalReservations,
+            SUM(CASE WHEN monitoring_active = 1 THEN 1 ELSE 0 END) as activeMonitoring,
+            SUM(success_sent) as successfulNotifications,
+            SUM(attempts_made) as totalAttempts
+          FROM reservations
+          WHERE email_address = ? AND user_deleted = 0`
         )
         .get(email);
 
       return res.status(200).json({
         message: "Active user statistics retrieved successfully",
         stats: {
-          totalReservations: totalReservations.count,
-          activeMonitoring: activeMonitoring.count,
-          successfulNotifications: successfulNotifications.count || 0,
-          totalAttempts: totalAttempts.count || 0,
+          totalReservations: stats.totalReservations,
+          activeMonitoring: stats.activeMonitoring || 0,
+          successfulNotifications: stats.successfulNotifications || 0,
+          totalAttempts: stats.totalAttempts || 0,
         },
       });
     } catch (error) {

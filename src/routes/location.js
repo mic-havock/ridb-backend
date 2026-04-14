@@ -1,15 +1,28 @@
 const express = require("express");
 const axios = require("axios");
+const { param, validationResult } = require("express-validator");
 
 const router = express.Router();
+
+const validate = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  next();
+};
 
 // RIDB API Base URL and Key
 const RIDB_BASE_URL = process.env.RIDB_BASE_URL;
 const RIDB_API_KEY = process.env.RIDB_API_KEY;
 
 // Endpoint: Get Facility Address by Facility ID
-router.get("/facilities/:facilityId/addresses", async (req, res) => {
-  const { facilityId } = req.params;
+router.get(
+  "/facilities/:facilityId/addresses",
+  [param("facilityId").notEmpty().trim().escape()],
+  validate,
+  async (req, res) => {
+    const { facilityId } = req.params;
 
   try {
     const response = await axios.get(

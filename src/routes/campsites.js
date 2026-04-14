@@ -1,11 +1,20 @@
 const express = require("express");
 const axios = require("axios");
 const dotenv = require("dotenv");
+const { query, param, validationResult } = require("express-validator");
 
 // Load environment variables
 dotenv.config();
 
 const router = express.Router();
+
+const validate = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  next();
+};
 
 // RIDB API Base URL and Key
 const RIDB_BASE_URL = process.env.RIDB_BASE_URL;
@@ -78,8 +87,12 @@ async function checkCampsiteAvailability(campsiteId, startDate, endDate) {
  * Fetch all campsites under a specific facility
  * Endpoint: GET /api/facilities/:facilityId/campsites
  */
-router.get("/facilities/:facilityId/campsites", async (req, res) => {
-  const { facilityId } = req.params;
+router.get(
+  "/facilities/:facilityId/campsites",
+  [param("facilityId").notEmpty().trim().escape()],
+  validate,
+  async (req, res) => {
+    const { facilityId } = req.params;
 
   try {
     const response = await axios.get(
@@ -103,8 +116,12 @@ router.get("/facilities/:facilityId/campsites", async (req, res) => {
  * Fetch details for a specific campsite
  * Endpoint: GET /api/campsites/:id
  */
-router.get("/campsites/:id", async (req, res) => {
-  const { id } = req.params;
+router.get(
+  "/campsites/:id",
+  [param("id").notEmpty().trim().escape()],
+  validate,
+  async (req, res) => {
+    const { id } = req.params;
 
   try {
     const response = await axios.get(`${RIDB_BASE_URL}campsites/${id}`, {
@@ -121,37 +138,53 @@ router.get("/campsites/:id", async (req, res) => {
   }
 });
 
-// Endpoint to check campground availability for a specific month
-// Example URL: https://www.recreation.gov/api/camps/availability/campground/232459/month?start_date=2025-05-01T00:00:00.000Z
-router.get("/campsites/:campgroundId/availability", async (req, res) => {
-  const { campgroundId } = req.params;
-  const { startDate } = req.query; // The start_date in the query string
-
-  if (!startDate) {
-    return res
-      .status(400)
-      .json({ message: "start_date is required in query params." });
-  }
+/**
+ * Internal function to fetch campground availability for a specific month
+ * @param {string} campgroundId - The ID of the campground
+ * @param {string} startDate - The start date for the month (ISO format)
+ * @returns {Promise<Object>} - The availability data
+ */
+async function fetchCampgroundMonthAvailability(campgroundId, startDate) {
+  const url = `https://www.recreation.gov/api/camps/availability/campground/${campgroundId}/month?start_date=${encodeURIComponent(
+    startDate
+  )}`;
 
   try {
-    // Construct the URL for the availability endpoint
-    const url = `https://www.recreation.gov/api/camps/availability/campground/${campgroundId}/month?start_date=${encodeURIComponent(
-      startDate
-    )}`;
-
-    // Make the API call
     const response = await axios.get(url);
-
-    // Return the availability data
-    res.json(response.data);
+    return response.data;
   } catch (error) {
     console.error(
       "Error checking campsite availability:",
       error.response?.data || error.message
     );
-    res.status(500).json({ message: "Error checking campsite availability" });
+    throw error;
   }
-});
+}
+
+// Endpoint to check campground availability for a specific month
+// Example URL: https://www.recreation.gov/api/camps/availability/campground/232459/month?start_date=2025-05-01T00:00:00.000Z
+router.get(
+  "/campsites/:campgroundId/availability",
+  [
+    param("campgroundId").notEmpty().trim().escape(),
+    query("startDate").isISO8601().withMessage("start_date must be a valid date"),
+  ],
+  validate,
+  async (req, res) => {
+    const { campgroundId } = req.params;
+    const { startDate } = req.query; // The start_date in the query string
+
+    try {
+      const data = await fetchCampgroundMonthAvailability(
+        campgroundId,
+        startDate
+      );
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ message: "Error checking campsite availability" });
+    }
+  }
+);
 
 /**
  * Function to fetch campsite availability for a specific campsite.
@@ -196,8 +229,12 @@ async function fetchCampsiteAvailability(campsiteId) {
 }
 
 // Endpoint to check availability for a specific campsite
-router.get("/campsites/availability/:campsiteId", async (req, res) => {
-  const { campsiteId } = req.params;
+router.get(
+  "/campsites/availability/:campsiteId",
+  [param("campsiteId").notEmpty().trim().escape()],
+  validate,
+  async (req, res) => {
+    const { campsiteId } = req.params;
 
   try {
     const availabilityData = await fetchCampsiteAvailability(campsiteId);
@@ -209,8 +246,8 @@ router.get("/campsites/availability/:campsiteId", async (req, res) => {
   }
 });
 
-//module.exports = { router, checkCampsiteAvailability };
 module.exports = {
   router,
   checkCampsiteAvailability,
+  fetchCampgroundMonthAvailability,
 };

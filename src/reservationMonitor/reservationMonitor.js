@@ -1,9 +1,11 @@
 require("dotenv").config(); // Load environment variables
 const sqlite3 = require("better-sqlite3"); // Use better-sqlite3 for improved performance
-const { checkCampsiteAvailability } = require("../routes/campsites.js"); // Import availability check function
+const {
+  checkCampsiteAvailability,
+  fetchCampgroundMonthAvailability,
+} = require("../routes/campsites.js"); // Import availability check function
 const { sendEmailNotification } = require("../notifications/emails.js"); // Import the sendEmailNotification function
 const notificationsTemplates = require("../notifications/notificationsTemplate.js");
-const axios = require("axios");
 
 // Path to your database
 const db = sqlite3("./reservations.db");
@@ -57,35 +59,30 @@ const processBatch = async (batch) => {
         if (availability.isReservable) {
           console.log(`Alert: Campsite ${row.campsite_id} is now reservable!`);
 
-          // Get templates from the templates file instead of env
-          let subject = notificationsTemplates.availabilityFound.subject;
-          let message = notificationsTemplates.availabilityFound.body;
-          let htmlMessage = notificationsTemplates.availabilityFound.html;
+          // Get templates and replace placeholders
+          const placeholders = {
+            campsite_name: row.campsite_name,
+            campsite_number: row.campsite_number,
+            campsite_id: row.campsite_id,
+            start_date: row.reservation_start_date,
+            end_date: row.reservation_end_date,
+            base_url: process.env.EXTERNAL_BASE_URL,
+            reservation_id: row.id,
+            email_address: encodeURIComponent(row.email_address),
+          };
 
-          // Replace placeholders with actual values
-          subject = subject
-            .replace("{campsite_name}", row.campsite_name)
-            .replace("{campsite_number}", row.campsite_number);
-
-          message = message
-            .replace("{campsite_name}", row.campsite_name)
-            .replace("{campsite_number}", row.campsite_number)
-            .replace("{campsite_id}", row.campsite_id)
-            .replace("{start_date}", row.reservation_start_date)
-            .replace("{end_date}", row.reservation_end_date)
-            .replace("{base_url}", process.env.EXTERNAL_BASE_URL)
-            .replace("{reservation_id}", row.id)
-            .replace("{email_address}", encodeURIComponent(row.email_address));
-
-          htmlMessage = htmlMessage
-            .replace("{campsite_name}", row.campsite_name)
-            .replace("{campsite_number}", row.campsite_number)
-            .replace("{campsite_id}", row.campsite_id)
-            .replace("{start_date}", row.reservation_start_date)
-            .replace("{end_date}", row.reservation_end_date)
-            .replace("{base_url}", process.env.EXTERNAL_BASE_URL)
-            .replace("{reservation_id}", row.id)
-            .replace("{email_address}", encodeURIComponent(row.email_address));
+          const subject = notificationsTemplates.formatTemplate(
+            notificationsTemplates.availabilityFound.subject,
+            placeholders
+          );
+          const message = notificationsTemplates.formatTemplate(
+            notificationsTemplates.availabilityFound.body,
+            placeholders
+          );
+          const htmlMessage = notificationsTemplates.formatTemplate(
+            notificationsTemplates.availabilityFound.html,
+            placeholders
+          );
 
           await sendEmailNotification(
             row.campsite_id,
@@ -205,10 +202,19 @@ const groupReservationsByFacilityAndMonth = (rows) => {
 const monitorReservations = async () => {
   const startTime = Date.now();
   try {
-    // Fetch only necessary columns (e.g., id) for active monitoring records
+    const monitoringIntervalMinutes = parseInt(
+      process.env.MONITOR_INTERVAL_MINUTES || "10",
+      10
+    );
+
+    // Fetch active monitoring records, filtering by last_success_sent_at in SQL
     const rows = db
       .prepare(
-        "SELECT * FROM reservations WHERE monitoring_active = 1 and user_deleted = 0"
+        `SELECT * FROM reservations
+         WHERE monitoring_active = 1
+         AND user_deleted = 0
+         AND (last_success_sent_at IS NULL
+              OR datetime(last_success_sent_at) < datetime('now', '-${monitoringIntervalMinutes} minutes'))`
       )
       .all();
 
@@ -218,31 +224,9 @@ const monitorReservations = async () => {
     }
 
     console.log(`\n=== Starting Monitoring Cycle ===`);
-    console.log(`Total active reservations: ${rows.length}`);
+    console.log(`Processing ${rows.length} reservations`);
 
-    // Filter out rows where last_success_sent_at is less than 10 minutes ago
-    const monitoringIntervalMinutes = parseInt(
-      process.env.MONITOR_INTERVAL_MINUTES || "10",
-      10
-    );
-    const tenMinutesAgo = new Date(
-      Date.now() - monitoringIntervalMinutes * 60 * 1000
-    );
-    let filteredRows = rows.filter((row) => {
-      const lastSuccessSentAt = new Date(row.last_success_sent_at);
-      return isNaN(lastSuccessSentAt) || lastSuccessSentAt < tenMinutesAgo;
-    });
-
-    console.log(
-      `Processing ${filteredRows.length} single reservations (${
-        rows.length - filteredRows.length
-      } filtered due to recent notifications)`
-    );
-
-    if (filteredRows.length === 0) {
-      console.log("No single reservations to process after filtering.");
-      return;
-    }
+    let filteredRows = rows;
 
     // Group rows by same month and facility ID
     const sameMonthFacilityGroups =
@@ -278,12 +262,13 @@ const monitorReservations = async () => {
 
         // Get availability data for the entire month
         try {
-          const availabilityData = await axios.get(
-            `http://localhost:3000/api/campsites/${facilityId}/availability?startDate=${startDate}`
+          const availabilityData = await fetchCampgroundMonthAvailability(
+            facilityId,
+            startDate
           );
           console.log(
             `Received availability data for ${
-              Object.keys(availabilityData.data.campsites).length
+              Object.keys(availabilityData.campsites).length
             } campsites in facility ${facilityId}`
           );
 
@@ -300,8 +285,7 @@ const monitorReservations = async () => {
               d.setDate(d.getDate() + 1)
             ) {
               const dateStr = d.toISOString().split("T")[0] + "T00:00:00Z";
-              const campsiteData =
-                availabilityData.data.campsites[row.campsite_id];
+              const campsiteData = availabilityData.campsites[row.campsite_id];
 
               if (!campsiteData) {
                 console.log(
@@ -326,41 +310,30 @@ const monitorReservations = async () => {
                 `\n🎉 ALERT: Campsite ${row.campsite_id} available for ${row.reservation_start_date} to ${row.reservation_end_date}`
               );
 
-              // Get templates from the templates file
-              let subject = notificationsTemplates.availabilityFound.subject;
-              let message = notificationsTemplates.availabilityFound.body;
-              let htmlMessage = notificationsTemplates.availabilityFound.html;
+              // Get templates and replace placeholders
+              const placeholders = {
+                campsite_name: row.campsite_name,
+                campsite_number: row.campsite_number,
+                campsite_id: row.campsite_id,
+                start_date: row.reservation_start_date,
+                end_date: row.reservation_end_date,
+                base_url: process.env.EXTERNAL_BASE_URL,
+                reservation_id: row.id,
+                email_address: encodeURIComponent(row.email_address),
+              };
 
-              // Replace placeholders with actual values
-              subject = subject
-                .replace("{campsite_name}", row.campsite_name)
-                .replace("{campsite_number}", row.campsite_number);
-
-              message = message
-                .replace("{campsite_name}", row.campsite_name)
-                .replace("{campsite_number}", row.campsite_number)
-                .replace("{campsite_id}", row.campsite_id)
-                .replace("{start_date}", row.reservation_start_date)
-                .replace("{end_date}", row.reservation_end_date)
-                .replace("{base_url}", process.env.EXTERNAL_BASE_URL)
-                .replace("{reservation_id}", row.id)
-                .replace(
-                  "{email_address}",
-                  encodeURIComponent(row.email_address)
-                );
-
-              htmlMessage = htmlMessage
-                .replace("{campsite_name}", row.campsite_name)
-                .replace("{campsite_number}", row.campsite_number)
-                .replace("{campsite_id}", row.campsite_id)
-                .replace("{start_date}", row.reservation_start_date)
-                .replace("{end_date}", row.reservation_end_date)
-                .replace("{base_url}", process.env.EXTERNAL_BASE_URL)
-                .replace("{reservation_id}", row.id)
-                .replace(
-                  "{email_address}",
-                  encodeURIComponent(row.email_address)
-                );
+              const subject = notificationsTemplates.formatTemplate(
+                notificationsTemplates.availabilityFound.subject,
+                placeholders
+              );
+              const message = notificationsTemplates.formatTemplate(
+                notificationsTemplates.availabilityFound.body,
+                placeholders
+              );
+              const htmlMessage = notificationsTemplates.formatTemplate(
+                notificationsTemplates.availabilityFound.html,
+                placeholders
+              );
 
               await sendEmailNotification(
                 row.campsite_id,
@@ -385,16 +358,14 @@ const monitorReservations = async () => {
             ).run(row.id);
           }
         } catch (error) {
-          if (
-            error.response &&
-            (error.response.status === 500 || error.response.status === 429)
-          ) {
+          const status = error.response ? error.response.status : null;
+          if (status === 500 || status === 429) {
             const monitoringIntervalMinutes = parseInt(
               process.env.MONITOR_INTERVAL_MINUTES || "10",
               10
             );
             console.log(
-              `Received ${error.response.status} status code. Pausing entire monitoring process for ${monitoringIntervalMinutes} minutes...`
+              `Received ${status} status code. Pausing entire monitoring process for ${monitoringIntervalMinutes} minutes...`
             );
             await new Promise((resolve) =>
               setTimeout(resolve, monitoringIntervalMinutes * 60 * 1000)

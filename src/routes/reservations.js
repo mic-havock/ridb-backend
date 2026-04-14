@@ -3,6 +3,15 @@ const router = express.Router();
 const db = require("better-sqlite3")("./reservations.db");
 const notificationsTemplate = require("../notifications/notificationsTemplate");
 const { sendEmailNotification } = require("../notifications/emails");
+const { body, param, validationResult } = require("express-validator");
+
+const validate = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  next();
+};
 
 /**
  * Route to disable monitoring for a specific reservation
@@ -11,7 +20,14 @@ const { sendEmailNotification } = require("../notifications/emails");
  * @param {string} email - The email address associated with the reservation
  * @returns {object} Success or error message
  */
-router.get("/disable-monitoring/:id/:email", (req, res) => {
+router.get(
+  "/disable-monitoring/:id/:email",
+  [
+    param("id").isInt().withMessage("Invalid reservation ID"),
+    param("email").isEmail().withMessage("Invalid email address"),
+  ],
+  validate,
+  (req, res) => {
   console.log("Disabling monitoring for reservation:", req.params.id);
   try {
     const { id, email } = req.params;
@@ -49,10 +65,30 @@ router.get("/disable-monitoring/:id/:email", (req, res) => {
 });
 
 // Create a new reservation
-router.post("/", async (req, res) => {
-  try {
-    const {
-      name,
+router.post(
+  "/",
+  [
+    body("name").notEmpty().trim().escape(),
+    body("email_address").isEmail().normalizeEmail(),
+    body("campsite_id").notEmpty().trim().escape(),
+    body("campsite_name").notEmpty().trim().escape(),
+    body("facility_id").notEmpty().trim().escape(),
+    body("campsite_number").notEmpty().trim().escape(),
+    body("reservation_start_date").isDate(),
+    body("reservation_end_date")
+      .isDate()
+      .custom((value, { req }) => {
+        if (new Date(value) <= new Date(req.body.reservation_start_date)) {
+          throw new Error("End date must be after start date");
+        }
+        return true;
+      }),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const {
+        name,
       email_address,
       campsite_id,
       campsite_name,
@@ -87,40 +123,29 @@ router.post("/", async (req, res) => {
     );
 
     // Send confirmation email
-    let subject = notificationsTemplate.confirmation.subject;
-    let message = notificationsTemplate.confirmation.body;
-    let htmlMessage = notificationsTemplate.confirmation.html;
+    const placeholders = {
+      campsite_name,
+      campsite_number,
+      campsite_id,
+      start_date: reservation_start_date,
+      end_date: reservation_end_date,
+      base_url: process.env.EXTERNAL_BASE_URL || "http://localhost:3000",
+      reservation_id: result.lastInsertRowid,
+      email_address: encodeURIComponent(email_address),
+    };
 
-    // Replace placeholders
-    subject = subject
-      .replace("{campsite_name}", campsite_name)
-      .replace("{campsite_number}", campsite_number);
-
-    message = message
-      .replace("{campsite_name}", campsite_name)
-      .replace("{campsite_number}", campsite_number)
-      .replace("{campsite_id}", campsite_id)
-      .replace("{start_date}", reservation_start_date)
-      .replace("{end_date}", reservation_end_date)
-      .replace(
-        "{base_url}",
-        process.env.EXTERNAL_BASE_URL || "http://localhost:3000"
-      )
-      .replace("{reservation_id}", result.lastInsertRowid)
-      .replace("{email_address}", encodeURIComponent(email_address));
-
-    htmlMessage = htmlMessage
-      .replace("{campsite_name}", campsite_name)
-      .replace("{campsite_number}", campsite_number)
-      .replace("{campsite_id}", campsite_id)
-      .replace("{start_date}", reservation_start_date)
-      .replace("{end_date}", reservation_end_date)
-      .replace(
-        "{base_url}",
-        process.env.EXTERNAL_BASE_URL || "http://localhost:3000"
-      )
-      .replace("{reservation_id}", result.lastInsertRowid)
-      .replace("{email_address}", encodeURIComponent(email_address));
+    const subject = notificationsTemplate.formatTemplate(
+      notificationsTemplate.confirmation.subject,
+      placeholders
+    );
+    const message = notificationsTemplate.formatTemplate(
+      notificationsTemplate.confirmation.body,
+      placeholders
+    );
+    const htmlMessage = notificationsTemplate.formatTemplate(
+      notificationsTemplate.confirmation.html,
+      placeholders
+    );
 
     await sendEmailNotification(
       campsite_id,
@@ -146,104 +171,112 @@ router.post("/", async (req, res) => {
  * @param {Array} reservations - Array of reservation objects to create
  * @returns {object} Success or error message with created reservation IDs
  */
-router.post("/bulk", async (req, res) => {
-  try {
-    const { reservations } = req.body;
-
-    if (!Array.isArray(reservations) || reservations.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error:
-          "Invalid reservations data. Expected non-empty array of reservations.",
-      });
-    }
+router.post(
+  "/bulk",
+  [
+    body("reservations").isArray({ min: 1 }),
+    body("reservations.*.name").notEmpty().trim().escape(),
+    body("reservations.*.email_address").isEmail().normalizeEmail(),
+    body("reservations.*.campsite_id").notEmpty().trim().escape(),
+    body("reservations.*.campsite_name").notEmpty().trim().escape(),
+    body("reservations.*.facility_id").notEmpty().trim().escape(),
+    body("reservations.*.campsite_number").notEmpty().trim().escape(),
+    body("reservations.*.reservation_start_date").isDate(),
+    body("reservations.*.reservation_end_date")
+      .isDate()
+      .custom((value, { req, path }) => {
+        const index = path.match(/\d+/)[0];
+        const startDate = req.body.reservations[index].reservation_start_date;
+        if (new Date(value) <= new Date(startDate)) {
+          throw new Error("End date must be after start date");
+        }
+        return true;
+      }),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const { reservations } = req.body;
 
     const createdReservations = [];
-    const stmt = db.prepare(`
-      INSERT INTO reservations (
-        name, email_address, campsite_id, campsite_name, facility_id, campsite_number, reservation_start_date, reservation_end_date,
-        monitoring_active, attempts_made, success_sent
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    const insertTransaction = db.transaction((reservations) => {
+      const stmt = db.prepare(`
+        INSERT INTO reservations (
+          name, email_address, campsite_id, campsite_name, facility_id, campsite_number, reservation_start_date, reservation_end_date,
+          monitoring_active, attempts_made, success_sent
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
 
-    for (const reservation of reservations) {
-      const {
-        name,
-        email_address,
-        campsite_id,
-        campsite_name,
-        facility_id,
-        campsite_number,
-        reservation_start_date,
-        reservation_end_date,
-        monitoring_active,
-        attempts_made,
-        success_sent,
-      } = reservation;
+      for (const reservation of reservations) {
+        const {
+          name,
+          email_address,
+          campsite_id,
+          campsite_name,
+          facility_id,
+          campsite_number,
+          reservation_start_date,
+          reservation_end_date,
+          monitoring_active,
+          attempts_made,
+          success_sent,
+        } = reservation;
 
-      const result = stmt.run(
-        name,
-        email_address,
-        campsite_id,
-        campsite_name,
-        facility_id,
-        campsite_number,
-        reservation_start_date,
-        reservation_end_date,
-        monitoring_active ? 1 : 0,
-        attempts_made,
-        success_sent ? 1 : 0
-      );
+        const result = stmt.run(
+          name,
+          email_address,
+          campsite_id,
+          campsite_name,
+          facility_id,
+          campsite_number,
+          reservation_start_date,
+          reservation_end_date,
+          monitoring_active ? 1 : 0,
+          attempts_made,
+          success_sent ? 1 : 0
+        );
 
-      createdReservations.push({
-        id: result.lastInsertRowid,
-        campsite_name,
-        campsite_number,
-      });
-    }
+        createdReservations.push({
+          id: result.lastInsertRowid,
+          campsite_name,
+          campsite_number,
+        });
+      }
+    });
+
+    insertTransaction(reservations);
 
     // Send bulk confirmation email to the first reservation's email address
     const firstReservation = reservations[0];
-    let subject = notificationsTemplate.bulkConfirmation.subject;
-    let message = notificationsTemplate.bulkConfirmation.body;
-    let htmlMessage = notificationsTemplate.bulkConfirmation.html;
 
-    // Create campsite list for plain text
+    // Create campsite list for plain text and HTML
     const campsiteList = createdReservations
       .map((res) => `- ${res.campsite_name} (Site ${res.campsite_number})`)
       .join("\n");
 
-    // Create campsite list for HTML
     const campsiteListHtml = createdReservations
       .map(
         (res) => `<li>${res.campsite_name} (Site ${res.campsite_number})</li>`
       )
       .join("");
 
-    // Replace placeholders
-    message = message
-      .replace("{campsite_list}", campsiteList)
-      .replace(
-        "{base_url}",
-        process.env.EXTERNAL_BASE_URL || "http://localhost:3000"
-      )
-      .replace("{reservation_id}", createdReservations[0].id)
-      .replace(
-        "{email_address}",
-        encodeURIComponent(firstReservation.email_address)
-      );
+    const placeholders = {
+      campsite_list: campsiteList,
+      campsite_list_html: campsiteListHtml,
+      base_url: process.env.EXTERNAL_BASE_URL || "http://localhost:3000",
+      reservation_id: createdReservations[0].id,
+      email_address: encodeURIComponent(firstReservation.email_address),
+    };
 
-    htmlMessage = htmlMessage
-      .replace("{campsite_list_html}", campsiteListHtml)
-      .replace(
-        "{base_url}",
-        process.env.EXTERNAL_BASE_URL || "http://localhost:3000"
-      )
-      .replace("{reservation_id}", createdReservations[0].id)
-      .replace(
-        "{email_address}",
-        encodeURIComponent(firstReservation.email_address)
-      );
+    const subject = notificationsTemplate.bulkConfirmation.subject;
+    const message = notificationsTemplate.formatTemplate(
+      notificationsTemplate.bulkConfirmation.body,
+      placeholders
+    );
+    const htmlMessage = notificationsTemplate.formatTemplate(
+      notificationsTemplate.bulkConfirmation.html,
+      placeholders
+    );
 
     await sendEmailNotification(
       "bulk",
