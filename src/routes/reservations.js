@@ -78,8 +78,8 @@ router.post(
     body("reservation_end_date")
       .isDate()
       .custom((value, { req }) => {
-        if (new Date(value) <= new Date(req.body.reservation_start_date)) {
-          throw new Error("End date must be after start date");
+        if (new Date(value) < new Date(req.body.reservation_start_date)) {
+          throw new Error("End date must be the same as or after start date");
         }
         return true;
       }),
@@ -187,8 +187,8 @@ router.post(
       .custom((value, { req, path }) => {
         const index = path.match(/\d+/)[0];
         const startDate = req.body.reservations[index].reservation_start_date;
-        if (new Date(value) <= new Date(startDate)) {
-          throw new Error("End date must be after start date");
+        if (new Date(value) < new Date(startDate)) {
+          throw new Error("End date must be the same as or after start date");
         }
         return true;
       }),
