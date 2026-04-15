@@ -68,12 +68,12 @@ router.get(
 router.post(
   "/",
   [
-    body("name").notEmpty().trim().escape(),
+    body("name").notEmpty().trim(),
     body("email_address").isEmail().normalizeEmail(),
-    body("campsite_id").notEmpty().trim().escape(),
-    body("campsite_name").notEmpty().trim().escape(),
-    body("facility_id").notEmpty().trim().escape(),
-    body("campsite_number").notEmpty().trim().escape(),
+    body("campsite_id").notEmpty().trim(),
+    body("campsite_name").notEmpty().trim(),
+    body("facility_id").notEmpty().trim(),
+    body("campsite_number").notEmpty().trim(),
     body("reservation_start_date").isDate(),
     body("reservation_end_date")
       .isDate()
@@ -175,12 +175,12 @@ router.post(
   "/bulk",
   [
     body("reservations").isArray({ min: 1 }),
-    body("reservations.*.name").notEmpty().trim().escape(),
+    body("reservations.*.name").notEmpty().trim(),
     body("reservations.*.email_address").isEmail().normalizeEmail(),
-    body("reservations.*.campsite_id").notEmpty().trim().escape(),
-    body("reservations.*.campsite_name").notEmpty().trim().escape(),
-    body("reservations.*.facility_id").notEmpty().trim().escape(),
-    body("reservations.*.campsite_number").notEmpty().trim().escape(),
+    body("reservations.*.campsite_id").notEmpty().trim(),
+    body("reservations.*.campsite_name").notEmpty().trim(),
+    body("reservations.*.facility_id").notEmpty().trim(),
+    body("reservations.*.campsite_number").notEmpty().trim(),
     body("reservations.*.reservation_start_date").isDate(),
     body("reservations.*.reservation_end_date")
       .isDate()
