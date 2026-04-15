@@ -46,11 +46,11 @@ router.get(
 router.get(
   "/facilities",
   [
-    query("limit").optional().isInt({ min: 1, max: 1000 }),
-    query("offset").optional().isInt({ min: 0 }),
-    query("latitude").optional().isFloat(),
-    query("longitude").optional().isFloat(),
-    query("radius").optional().isFloat(),
+    query("limit").optional({ values: "falsy" }).isInt({ min: 1, max: 1000 }),
+    query("offset").optional({ values: "falsy" }).isInt({ min: 0 }),
+    query("latitude").optional({ values: "falsy" }).isFloat(),
+    query("longitude").optional({ values: "falsy" }).isFloat(),
+    query("radius").optional({ values: "falsy" }).isFloat(),
   ],
   validate,
   async (req, res) => {
