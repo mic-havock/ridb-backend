@@ -177,9 +177,26 @@ const htmlTemplates = {
   `,
 };
 
+/**
+ * Utility function to replace placeholders in a template string
+ * @param {string} template - The template string containing placeholders like {key}
+ * @param {Object} placeholders - Object containing key-value pairs for replacement
+ * @returns {string} - The formatted string
+ */
+const formatTemplate = (template, placeholders) => {
+  if (!template) return "";
+  let formatted = template;
+  for (const [key, value] of Object.entries(placeholders)) {
+    const regex = new RegExp(`{${key}}`, "g");
+    formatted = formatted.replace(regex, value);
+  }
+  return formatted;
+};
+
 module.exports = {
   confirmation: notificationsTemplate.confirmation,
   availabilityFound: notificationsTemplate.success,
   bulkConfirmation: notificationsTemplate.bulkConfirmation,
   htmlTemplates,
+  formatTemplate,
 };

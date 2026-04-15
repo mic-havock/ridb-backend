@@ -53,7 +53,12 @@ app.use((req, res, next) => {
 // Error-handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ error: "Internal Server Error" });
+  const response = { error: "Internal Server Error" };
+  if (process.env.NODE_ENV === "development") {
+    response.message = err.message;
+    response.stack = err.stack;
+  }
+  res.status(500).json(response);
 });
 
 // Start the server

@@ -1,7 +1,16 @@
 const express = require("express");
 const axios = require("axios");
+const { query, param, validationResult } = require("express-validator");
 
 const router = express.Router();
+
+const validate = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  next();
+};
 
 // RIDB API Base URL and Key
 const RIDB_BASE_URL = process.env.RIDB_BASE_URL;
@@ -12,8 +21,12 @@ const LIMIT = 100;
 const OFFSET = 0;
 
 // Endpoint: Get Facility by ID
-router.get("/facilities/:id", async (req, res) => {
-  const { id } = req.params;
+router.get(
+  "/facilities/:id",
+  [param("id").notEmpty().trim().escape()],
+  validate,
+  async (req, res) => {
+    const { id } = req.params;
 
   try {
     const response = await axios.get(`${RIDB_BASE_URL}/facilities/${id}`, {
@@ -30,8 +43,18 @@ router.get("/facilities/:id", async (req, res) => {
 });
 
 //Endpoint: Get Facility by Multiple Criteria
-router.get("/facilities", async (req, res) => {
-  const {
+router.get(
+  "/facilities",
+  [
+    query("limit").optional({ values: "falsy" }).isInt({ min: 1, max: 1000 }),
+    query("offset").optional({ values: "falsy" }).isInt({ min: 0 }),
+    query("latitude").optional({ values: "falsy" }).isFloat(),
+    query("longitude").optional({ values: "falsy" }).isFloat(),
+    query("radius").optional({ values: "falsy" }).isFloat(),
+  ],
+  validate,
+  async (req, res) => {
+    const {
     query,
     limit,
     offset,
