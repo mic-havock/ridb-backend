@@ -240,6 +240,8 @@ router.post(
           id: result.lastInsertRowid,
           campsite_name,
           campsite_number,
+          reservation_start_date,
+          reservation_end_date,
         });
       }
     });
@@ -251,12 +253,16 @@ router.post(
 
     // Create campsite list for plain text and HTML
     const campsiteList = createdReservations
-      .map((res) => `- ${res.campsite_name} (Site ${res.campsite_number})`)
+      .map(
+        (res) =>
+          `- ${res.campsite_name} (Site ${res.campsite_number})\n  Dates Requested: ${res.reservation_start_date} through ${res.reservation_end_date}`
+      )
       .join("\n");
 
     const campsiteListHtml = createdReservations
       .map(
-        (res) => `<li>${res.campsite_name} (Site ${res.campsite_number})</li>`
+        (res) =>
+          `<li>${res.campsite_name} (Site ${res.campsite_number})<br>Dates Requested: ${res.reservation_start_date} through ${res.reservation_end_date}</li>`
       )
       .join("");
 
