@@ -78,8 +78,8 @@ router.get(
     const params = {
       limit: limit || LIMIT,
       offset: offset || OFFSET,
-      latitude: latitude || "",
-      longitude: longitude || "",
+      latitude: hasGeo ? longitude || "" : latitude || "",
+      longitude: hasGeo ? latitude || "" : longitude || "",
     };
 
     if (hasGeo) {
@@ -113,7 +113,7 @@ router.get(
         params,
         headers: { apikey: RIDB_API_KEY },
       });
-      res.json(response.data); // return the response data
+      res.json(response.data);
     } catch (error) {
       console.error(
         "Error fetching facilities:",

@@ -1,15 +1,20 @@
 const nodemailer = require("nodemailer");
 require("dotenv").config(); // Load environment variables
 
-// Create a transporter for sending emails
+// ZeptoMail: SMTP auth user is "emailapikey"; recipients must see your verified domain address.
+const emailFromAddress = process.env.EMAIL_FROM;
+const emailFromName = process.env.EMAIL_NAME || "Kamp Scout";
+const emailFrom =
+  emailFromAddress && `"${emailFromName}" <${emailFromAddress}>`;
+
+// ZeptoMail SMTP (auth user is always "emailapikey"; From must be a verified sender)
 const transporter = nodemailer.createTransport({
-  //service: "gmail", // Or your email provider (e.g., Yahoo, Outlook)
-  host: process.env.EMAIL_HOST, // Zoho SMTP server
-  port: process.env.EMAIL_PORT, // Zoho SMTP port for SSL
-  secure: process.env.EMAIL_SECURE, // Use SSL
+  host: process.env.EMAIL_HOST,
+  port: Number(process.env.EMAIL_PORT) || 465,
+  secure: process.env.EMAIL_SECURE === "true",
   auth: {
-    user: process.env.EMAIL_USER, // Your Zoho email address
-    pass: process.env.EMAIL_PASS, // Your Zoho app-specific password
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
 });
 
@@ -20,11 +25,20 @@ const sendEmailNotification = async (
   message,
   recipientEmail
 ) => {
+  if (!emailFrom) {
+    console.log("Failed to send email notification: EMAIL_FROM is not set", {
+      campsiteId,
+      recipient: recipientEmail,
+      subject,
+    });
+    return;
+  }
+
   // Determine if message is a string or an object with text/html
   const isMessageObject = typeof message === "object" && message !== null;
 
   const mailOptions = {
-    from: `"${process.env.EMAIL_NAME}" <${process.env.EMAIL_USER}>`,
+    from: emailFrom,
     to: recipientEmail, // Recipient email address
     subject: subject,
     text: isMessageObject ? message.text : message, // Plain text version
