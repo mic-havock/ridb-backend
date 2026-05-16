@@ -20,6 +20,7 @@ Don't wait - available campsites can be booked quickly!
 Happy Camping! 🏕️
 
 ---
+Manage your reservations: https://www.kampscout.com/reservation-management
 To stop receiving these alerts, visit: {base_url}/api/reservations/disable-monitoring/{reservation_id}/{email_address}`,
     html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
   <h2>Great news! The campsite you're interested in is now available!</h2>
@@ -41,6 +42,9 @@ To stop receiving these alerts, visit: {base_url}/api/reservations/disable-monit
 
   <hr style="border: 1px solid #eee; margin: 20px 0;">
   <p style="font-size: 12px; color: #666;">
+    <a href="https://www.kampscout.com/reservation-management">Manage your reservations</a>
+  </p>
+  <p style="font-size: 12px; color: #666;">
     To stop receiving these alerts click <a href="{base_url}/api/reservations/disable-monitoring/{reservation_id}/{email_address}">here</a>
   </p>
 </div>`,
@@ -61,6 +65,7 @@ You'll receive an email as soon as this campsite becomes available for your date
 View the campsite: https://www.recreation.gov/camping/campsites/{campsite_id}
 
 ---
+Manage your reservations: https://www.kampscout.com/reservation-management
 To stop receiving these alerts, visit: {base_url}/api/reservations/disable-monitoring/{reservation_id}/{email_address}
 
 Happy Camping! 🏕️`,
@@ -84,6 +89,9 @@ Happy Camping! 🏕️`,
 
   <hr style="border: 1px solid #eee; margin: 20px 0;">
   <p style="font-size: 12px; color: #666;">
+    <a href="https://www.kampscout.com/reservation-management">Manage your reservations</a>
+  </p>
+  <p style="font-size: 12px; color: #666;">
     To stop receiving these alerts click <a href="{base_url}/api/reservations/disable-monitoring/{reservation_id}/{email_address}">here</a>
   </p>
 </div>`,
@@ -101,7 +109,8 @@ You'll receive individual emails as soon as any of these campsites become availa
 Happy Camping! 🏕️
 
 ---
-To stop receiving these alerts, visit: https://kampscout.com/reservation-management`,
+Manage your reservations: https://www.kampscout.com/reservation-management
+To stop receiving these alerts, visit: https://www.kampscout.com/reservation-management`,
     html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
   <h2>Your campsite alerts have been successfully created! 🎉</h2>
 
@@ -118,7 +127,10 @@ To stop receiving these alerts, visit: https://kampscout.com/reservation-managem
 
   <hr style="border: 1px solid #eee; margin: 20px 0;">
   <p style="font-size: 12px; color: #666;">
-    To stop receiving these alerts click <a href="https://kampscout.com/reservation-management">here</a>
+    <a href="https://www.kampscout.com/reservation-management">Manage your reservations</a>
+  </p>
+  <p style="font-size: 12px; color: #666;">
+    To stop receiving these alerts click <a href="https://www.kampscout.com/reservation-management">here</a>
   </p>
 </div>`,
   },
