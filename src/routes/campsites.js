@@ -25,53 +25,212 @@ const AVAILABLE_CAMPSITE_STATUSES = process.env.AVAILABLE_CAMPSITE_STATUSES
   ? process.env.AVAILABLE_CAMPSITE_STATUSES.split(",")
   : ["Available", "Open"]; // Default if not set
 
+/** Status used for dates beyond the reservation window (checkout/end dates only). */
+const CHECKOUT_ONLY_STATUS = "Checkout";
+
+/**
+ * Returns whole calendar days between today (UTC) and the given date string.
+ * @param {string} dateStr - ISO date key from availability payload (e.g. "2026-07-29T00:00:00Z")
+ * @returns {number}
+ */
+function getDaysFromToday(dateStr) {
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const date = new Date(dateStr.split("T")[0] + "T00:00:00Z");
+  return Math.floor((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+/**
+ * Extracts reservation window length in days from campsite_rules, if present.
+ * @param {object|undefined} campsiteRules
+ * @returns {number|null}
+ */
+function getReservationWindowDays(campsiteRules) {
+  const reservationWindow = campsiteRules?.reservationWindow;
+  if (
+    !reservationWindow ||
+    reservationWindow.units !== "Days" ||
+    typeof reservationWindow.value !== "number"
+  ) {
+    return null;
+  }
+  return reservationWindow.value;
+}
+
+/**
+ * Whether a date is far enough in the future to allow a new check-in.
+ * Dates at or beyond the reservation window are checkout-only.
+ * @param {string} dateStr
+ * @param {number|null} windowDays
+ * @returns {boolean}
+ */
+function isCheckInWithinReservationWindow(dateStr, windowDays) {
+  if (windowDays === null) {
+    return true;
+  }
+  return getDaysFromToday(dateStr) < windowDays;
+}
+
+/**
+ * Marks dates outside the reservation window as checkout-only for one campsite.
+ * @param {object} campsiteData - Campsite availability object with availabilities and campsite_rules
+ * @returns {object}
+ */
+function applyReservationWindowToCampsite(campsiteData) {
+  if (!campsiteData?.availabilities) {
+    return campsiteData;
+  }
+
+  const windowDays = getReservationWindowDays(campsiteData.campsite_rules);
+  if (windowDays === null) {
+    return campsiteData;
+  }
+
+  for (const [dateStr, status] of Object.entries(campsiteData.availabilities)) {
+    const isOpenStatus = AVAILABLE_CAMPSITE_STATUSES.includes(status);
+    if (isOpenStatus && getDaysFromToday(dateStr) >= windowDays) {
+      campsiteData.availabilities[dateStr] = CHECKOUT_ONLY_STATUS;
+    }
+  }
+
+  return campsiteData;
+}
+
+/**
+ * Marks dates outside the reservation window as checkout-only for all campsites.
+ * @param {object} campgroundData - Campground month availability response
+ * @returns {object}
+ */
+function applyReservationWindowToCampground(campgroundData) {
+  if (!campgroundData?.campsites) {
+    return campgroundData;
+  }
+
+  for (const campsiteId of Object.keys(campgroundData.campsites)) {
+    applyReservationWindowToCampsite(campgroundData.campsites[campsiteId]);
+  }
+
+  return campgroundData;
+}
+
+/**
+ * Marks dates outside the reservation window as checkout-only instead of open.
+ * @param {object} availabilityPayload - Raw recreation.gov availability response
+ * @returns {object}
+ */
+function applyReservationWindowRules(availabilityPayload) {
+  const availability = availabilityPayload?.availability;
+  if (!availability) {
+    return availabilityPayload;
+  }
+
+  applyReservationWindowToCampsite(availability);
+  return availabilityPayload;
+}
+
+/**
+ * Determines whether a status is acceptable for a date within a reservation range.
+ * @param {string|undefined} status
+ * @param {"check-in"|"stay"|"checkout"} dateRole
+ * @returns {boolean}
+ */
+function isStatusAcceptableForDateRole(status, dateRole) {
+  if (!status) {
+    return false;
+  }
+
+  if (dateRole === "check-in") {
+    return AVAILABLE_CAMPSITE_STATUSES.includes(status);
+  }
+
+  return (
+    AVAILABLE_CAMPSITE_STATUSES.includes(status) ||
+    status === CHECKOUT_ONLY_STATUS
+  );
+}
+
+/**
+ * Checks whether a reservation date range is reservable using availability data.
+ * @param {object} availabilities - Date-keyed availability statuses
+ * @param {object|undefined} campsiteRules - Campsite rules including reservationWindow
+ * @param {string} startDate - Reservation start date
+ * @param {string} endDate - Reservation end date
+ * @returns {boolean}
+ */
+function isDateRangeReservable(
+  availabilities,
+  campsiteRules,
+  startDate,
+  endDate
+) {
+  const windowDays = getReservationWindowDays(campsiteRules);
+  const startDateObj = new Date(startDate);
+  const endDateObj = endDate ? new Date(endDate) : startDateObj;
+  const isSingleDateCheck = startDateObj.getTime() === endDateObj.getTime();
+  const startDateStr =
+    startDateObj.toISOString().split("T")[0] + "T00:00:00Z";
+  const checkoutDateStr =
+    endDateObj.toISOString().split("T")[0] + "T00:00:00Z";
+
+  for (
+    let date = new Date(startDateObj);
+    date <= endDateObj;
+    date.setDate(date.getDate() + 1)
+  ) {
+    const formattedDate = date.toISOString().split("T")[0] + "T00:00:00Z";
+    const status = availabilities[formattedDate];
+
+    if (isSingleDateCheck) {
+      if (
+        status !== "Available" ||
+        !isCheckInWithinReservationWindow(formattedDate, windowDays)
+      ) {
+        return false;
+      }
+      continue;
+    }
+
+    const isCheckInDate = formattedDate === startDateStr;
+    const isCheckoutDate = formattedDate === checkoutDateStr;
+    let dateRole = "stay";
+    if (isCheckInDate) {
+      dateRole = "check-in";
+    } else if (isCheckoutDate) {
+      dateRole = "checkout";
+    }
+
+    if (
+      dateRole === "check-in" &&
+      !isCheckInWithinReservationWindow(formattedDate, windowDays)
+    ) {
+      return false;
+    }
+
+    if (!isStatusAcceptableForDateRole(status, dateRole)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 // Checks campsite availability
 async function checkCampsiteAvailability(campsiteId, startDate, endDate) {
   console.log("Checking availability for campsite:", campsiteId);
   try {
-    // Use fetchCampsiteAvailability instead of axios.get
     const response = await fetchCampsiteAvailability(campsiteId);
     const availabilityData = response.availability.availabilities;
-    //console.log("Availability data:", availabilityData);
-    const startDateObj = new Date(startDate);
-    const endDateObj = endDate ? new Date(endDate) : startDateObj;
-    console.log("Start Date:", startDateObj);
-    console.log("End Date:", endDateObj);
-    let isReservable = true;
+    const campsiteRules = response.availability.campsite_rules;
+    console.log("Start Date:", new Date(startDate));
+    console.log("End Date:", new Date(endDate || startDate));
 
-    // Check if this is a single date check (start date equals end date)
-    const isSingleDateCheck = startDateObj.getTime() === endDateObj.getTime();
+    const isReservable = isDateRangeReservable(
+      availabilityData,
+      campsiteRules,
+      startDate,
+      endDate
+    );
 
-    // Loop through the date range to check availabilities
-    for (
-      let date = new Date(startDateObj);
-      date <= endDateObj;
-      date.setDate(date.getDate() + 1)
-    ) {
-      const formattedDate = date.toISOString().split("T")[0] + "T00:00:00Z";
-      console.log("Checking availability for date:", formattedDate);
-
-      // For single date checks, only accept "Available" status specifically
-      // For date ranges, use the configurable AVAILABLE_CAMPSITE_STATUSES array
-      const status = availabilityData[formattedDate];
-      console.log("Status for date:", status);
-
-      if (isSingleDateCheck) {
-        if (status !== "Available") {
-          console.log(
-            "Single date check requires 'Available' status, found:",
-            status
-          );
-          isReservable = false;
-          break;
-        }
-      } else if (!AVAILABLE_CAMPSITE_STATUSES.includes(status)) {
-        console.log("Availability data:", status);
-        console.log("Campsite is not reservable on date:", formattedDate);
-        isReservable = false;
-        break;
-      }
-    }
     console.log("Campsite is reservable:", isReservable);
     return {
       campsiteId,
@@ -151,7 +310,7 @@ async function fetchCampgroundMonthAvailability(campgroundId, startDate) {
 
   try {
     const response = await axios.get(url);
-    return response.data;
+    return applyReservationWindowToCampground(response.data);
   } catch (error) {
     console.error(
       "Error checking campsite availability:",
@@ -197,7 +356,7 @@ async function fetchCampsiteAvailability(campsiteId) {
 
   try {
     const response = await axios.get(url);
-    return response.data;
+    return applyReservationWindowRules(response.data);
   } catch (error) {
     // Check if this is a rate limit error (429)
     if (error.response && error.response.status === 429) {
@@ -250,4 +409,9 @@ module.exports = {
   router,
   checkCampsiteAvailability,
   fetchCampgroundMonthAvailability,
+  applyReservationWindowRules,
+  applyReservationWindowToCampground,
+  getReservationWindowDays,
+  isDateRangeReservable,
+  CHECKOUT_ONLY_STATUS,
 };

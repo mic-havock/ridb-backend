@@ -3,17 +3,13 @@ const sqlite3 = require("better-sqlite3"); // Use better-sqlite3 for improved pe
 const {
   checkCampsiteAvailability,
   fetchCampgroundMonthAvailability,
+  isDateRangeReservable,
 } = require("../routes/campsites.js"); // Import availability check function
 const { sendEmailNotification } = require("../notifications/emails.js"); // Import the sendEmailNotification function
 const notificationsTemplates = require("../notifications/notificationsTemplate.js");
 
 // Path to your database
 const db = sqlite3("./reservations.db");
-
-// Get available campsite statuses from environment variable
-const AVAILABLE_CAMPSITE_STATUSES = process.env.AVAILABLE_CAMPSITE_STATUSES
-  ? process.env.AVAILABLE_CAMPSITE_STATUSES.split(",")
-  : ["Available", "Open"]; // Default if not set
 
 /**
  * Process a batch of reservations with throttling
@@ -274,35 +270,29 @@ const monitorReservations = async () => {
 
           // Process each row in the group
           for (const row of rows) {
-            const startDate = new Date(row.reservation_start_date);
-            const endDate = new Date(row.reservation_end_date);
+            const campsiteData = availabilityData.campsites[row.campsite_id];
 
-            // Check if all dates in the range are available
-            let isAvailable = true;
-            for (
-              let d = new Date(startDate);
-              d <= endDate;
-              d.setDate(d.getDate() + 1)
-            ) {
-              const dateStr = d.toISOString().split("T")[0] + "T00:00:00Z";
-              const campsiteData = availabilityData.campsites[row.campsite_id];
+            if (!campsiteData) {
+              console.log(
+                `No availability data for campsite ${row.campsite_id}`
+              );
+              db.prepare(
+                "UPDATE reservations SET attempts_made = attempts_made + 1 WHERE id = ?"
+              ).run(row.id);
+              continue;
+            }
 
-              if (!campsiteData) {
-                console.log(
-                  `No availability data for campsite ${row.campsite_id}`
-                );
-                isAvailable = false;
-                break;
-              }
+            const isAvailable = isDateRangeReservable(
+              campsiteData.availabilities,
+              campsiteData.campsite_rules,
+              row.reservation_start_date,
+              row.reservation_end_date
+            );
 
-              const availability = campsiteData.availabilities[dateStr];
-              if (!AVAILABLE_CAMPSITE_STATUSES.includes(availability)) {
-                console.log(
-                  `Campsite ${row.campsite_id} not available on ${dateStr} (${availability})`
-                );
-                isAvailable = false;
-                break;
-              }
+            if (!isAvailable) {
+              console.log(
+                `Campsite ${row.campsite_id} not reservable for ${row.reservation_start_date} to ${row.reservation_end_date}`
+              );
             }
 
             if (isAvailable) {
