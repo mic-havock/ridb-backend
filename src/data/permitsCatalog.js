@@ -47,15 +47,6 @@ const permitsCatalog = [
     rec_gov_url: "https://www.recreation.gov/permits/233273",
     detailed_availability_url: "https://www.recreation.gov/permits/233273/registration/detailed-availability",
     description: "Advanced lottery permits for overnight camping in the Enchantments zone"
-  },
-  {
-    id: "445863",
-    name: "Enchantments Daily Lottery",
-    park: "Enchantments",
-    api_type: "lottery_daily",
-    rec_gov_url: "https://www.recreation.gov/permits/445863",
-    detailed_availability_url: "https://www.recreation.gov/permits/445863/registration/detailed-availability",
-    description: "Daily lottery for day-before overnight permits in the Enchantments (geofenced - lottery window reminders only)"
   }
 ];
 

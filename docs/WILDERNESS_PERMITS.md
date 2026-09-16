@@ -13,7 +13,6 @@ This implementation adds wilderness permit cancellation/availability monitoring 
 | Olympic NP Wilderness | 4098362 | itinerary | Wilderness camps |
 | Mount Margaret Backcountry | 250003 | standard | Standard availability API |
 | Enchantments Advanced Lottery | 233273 | standard | Lottery product with remaining counts |
-| Enchantments Daily Lottery | 445863 | lottery_daily | Not polled - geofenced/day-before only |
 
 ## API Endpoints
 
@@ -191,15 +190,6 @@ CREATE TABLE permit_watches (
 
 **Availability Check:** Any date with `remaining > 0` is available.
 
-### Enchantments Daily Lottery Handling
-
-The Enchantments Daily Lottery (445863) is a geofenced, day-before lottery product. The implementation:
-
-- Includes it in the catalog for visibility
-- Marks it as `api_type: "lottery_daily"`
-- Skips polling (no availability endpoint to check)
-- Could be extended to send lottery window reminder emails (future enhancement)
-
 ## Monitoring Process
 
 The permit monitor runs in parallel with campsite monitoring:
@@ -209,7 +199,6 @@ The permit monitor runs in parallel with campsite monitoring:
 2. **Process by API Type:**
    - **Itinerary:** Fetches monthly availability for each division and checks if any date in range is available
    - **Standard:** Fetches date range availability and checks `remaining > 0`
-   - **Lottery Daily:** Skips (not pollable)
 
 3. **Rate Limiting:**
    - 500ms delay between division checks within a single watch
@@ -350,22 +339,19 @@ No new environment variables required. Reuses existing configuration:
 
 ## Future Enhancements
 
-1. **Enchantments Daily Lottery Reminders:** Send notification when lottery window opens
-2. **Group Size Filtering:** Alert only if `remaining >= group_size`
-3. **Frontend Dashboard:** Add UI for managing permit watches
-4. **Webhook Integration:** Allow posting alerts to Slack/Discord
-5. **Advanced Scheduling:** Different polling frequencies per permit type
-6. **Historical Data:** Track availability patterns over time
+1. **Group Size Filtering:** Alert only if `remaining >= group_size`
+2. **Frontend Dashboard:** Add UI for managing permit watches
+3. **Webhook Integration:** Allow posting alerts to Slack/Discord
+4. **Advanced Scheduling:** Different polling frequencies per permit type
+5. **Historical Data:** Track availability patterns over time
 
 ## Known Limitations
 
 1. **Olympic Permit:** Recreation.gov's `/api/permits/4098362/availability` endpoint returns "Olympic permit is disabled in PermitService". Only the itinerary endpoint works.
 
-2. **Enchantments Daily Lottery:** Cannot be polled for availability (geofenced, day-before only). Watch creation allowed but monitoring is skipped.
+2. **Rate Limiting:** Recreation.gov may return 429 errors under heavy load. Existing rate-limit handling applies.
 
-3. **Rate Limiting:** Recreation.gov may return 429 errors under heavy load. Existing rate-limit handling applies.
-
-4. **Division Name Lookup:** Requires extra API call to fetch human-readable names. Results are not cached in DB, refetched on each alert.
+3. **Division Name Lookup:** Requires extra API call to fetch human-readable names. Results are not cached in DB, refetched on each alert.
 
 ## Support
 

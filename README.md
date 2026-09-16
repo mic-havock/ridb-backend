@@ -155,7 +155,6 @@ Disable monitoring for a specific permit watch
 | Olympic NP Wilderness | 4098362 | itinerary | Wilderness camps |
 | Mount Margaret Backcountry | 250003 | standard | Standard API |
 | Enchantments Advanced Lottery | 233273 | standard | Lottery product |
-| Enchantments Daily Lottery | 445863 | lottery_daily | Not polled (geofenced) |
 
 ## Database Schema
 
@@ -321,9 +320,7 @@ test/
 
 1. **Olympic Permit API:** The standard `/api/permits/4098362/availability` endpoint is disabled by Recreation.gov. Only the itinerary endpoint works.
 
-2. **Enchantments Daily Lottery:** Cannot be polled for availability (geofenced, day-before lottery). Cataloged but monitoring is skipped.
-
-3. **Rate Limiting:** Recreation.gov may return 429 errors. The system automatically pauses and retries.
+2. **Rate Limiting:** Recreation.gov may return 429 errors. The system automatically pauses and retries.
 
 ## Contributing
 

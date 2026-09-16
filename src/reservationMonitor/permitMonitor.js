@@ -262,7 +262,7 @@ const handleExpiredPermitWatch = (watch) => {
 /**
  * Determines permit API type from catalog or falls back to itinerary
  * @param {string} permitId
- * @returns {string} - "itinerary", "standard", or "lottery_daily"
+ * @returns {string} - "itinerary" or "standard"
  */
 const getPermitApiType = (permitId) => {
   const permitsCatalog = require("../data/permitsCatalog");
@@ -282,15 +282,6 @@ const processPermitWatch = async (watch) => {
   try {
     const divisionIds = JSON.parse(watch.division_ids);
     const apiType = getPermitApiType(watch.permit_id);
-
-    // Skip daily lottery permits (they are geofenced and can't be polled for availability)
-    if (apiType === "lottery_daily") {
-      console.log(`Skipping daily lottery permit ${watch.permit_id} - not pollable`);
-      db.prepare(
-        "UPDATE permit_watches SET attempts_made = attempts_made + 1 WHERE id = ?"
-      ).run(watch.id);
-      return;
-    }
 
     let foundAvailability = false;
     let availableDivisionName = null;
