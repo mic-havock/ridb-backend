@@ -11,6 +11,7 @@ const facilitiesRouter = require("../src/routes/facilities");
 const { router: campsitesRouter } = require("../src/routes/campsites");
 const locationRouter = require("../src/routes/location");
 const reservationsRouter = require("../src/routes/reservations");
+const permitsRouter = require("../src/routes/permits");
 const userRouter = require("../src/routes/user"); // Import user routes
 
 const app = express();
@@ -38,6 +39,7 @@ app.use("/api", facilitiesRouter);
 app.use("/api", campsitesRouter);
 app.use("/api", locationRouter);
 app.use("/api/reservations", reservationsRouter); // Mount reservations endpoints
+app.use("/api/permits", permitsRouter); // Mount permits endpoints
 app.use("/api/user", userRouter); // Mount user endpoints
 
 // Default route to check if the server is running

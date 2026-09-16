@@ -7,6 +7,7 @@ const {
 } = require("../routes/campsites.js"); // Import availability check function
 const { sendEmailNotification } = require("../notifications/emails.js"); // Import the sendEmailNotification function
 const notificationsTemplates = require("../notifications/notificationsTemplate.js");
+const { monitorPermitWatches } = require("./permitMonitor.js"); // Import permit monitoring
 
 // Path to your database
 const db = sqlite3("./reservations.db");
@@ -407,11 +408,9 @@ const monitorReservations = async () => {
 
     if (rows.length === 0) {
       console.log("No active reservations to monitor.");
-      return;
-    }
-
-    console.log(`\n=== Starting Monitoring Cycle ===`);
-    console.log(`Processing ${rows.length} reservations`);
+    } else {
+      console.log(`\n=== Starting Campsite Monitoring Cycle ===`);
+      console.log(`Processing ${rows.length} reservations`);
 
     let filteredRows = rows;
 
@@ -496,7 +495,7 @@ const monitorReservations = async () => {
       processBatch
     );
 
-    console.log("Monitoring cycle complete", {
+    console.log("Campsite monitoring cycle complete", {
       processedSingleReservations: filteredRows.length,
       processedFacilityReservations: Array.from(
         multiReservationFacilities.values()
@@ -504,6 +503,16 @@ const monitorReservations = async () => {
       durationSeconds: ((Date.now() - startTime) / 1000).toFixed(2),
       timestamp: new Date().toISOString(),
     });
+    }
+
+    // Now monitor permit watches
+    await monitorPermitWatches();
+
+    console.log("=== Complete Monitoring Cycle Finished ===", {
+      totalDurationSeconds: ((Date.now() - startTime) / 1000).toFixed(2),
+      timestamp: new Date().toISOString(),
+    });
+
     return results;
   } catch (error) {
     const now = new Date().toISOString();

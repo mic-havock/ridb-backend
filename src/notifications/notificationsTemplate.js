@@ -134,6 +134,98 @@ To stop receiving these alerts, visit: https://www.kampscout.com/reservation-man
   </p>
 </div>`,
   },
+
+  permitConfirmation: {
+    subject: "Wilderness Permit Alert Confirmed for {permit_name} 🏔️",
+    body: `Your wilderness permit alert has been successfully created!
+
+We'll monitor availability for:
+- Permit: {permit_name}
+- Dates Requested: {start_date} through {end_date}
+- Zones/Camps: {division_count} location(s)
+
+You'll receive an email as soon as any of your requested zones become available for your dates.
+
+View the permit: https://www.recreation.gov/permits/{permit_id}
+
+---
+Manage your alerts: https://www.kampscout.com/reservation-management
+To stop receiving these alerts, visit: {base_url}/api/permits/watches/disable/{watch_id}/{email_address}
+
+Happy Hiking! 🏔️`,
+    html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <h2>Your wilderness permit alert has been successfully created!</h2>
+
+  <div style="margin: 20px 0;">
+    <strong>We'll monitor availability for:</strong>
+    <ul>
+      <li>Permit: {permit_name}</li>
+      <li>Dates Requested: {start_date} through {end_date}</li>
+      <li>Zones/Camps: {division_count} location(s)</li>
+    </ul>
+  </div>
+
+  <p>You'll receive an email as soon as any of your requested zones become available for your dates.</p>
+
+  <p><a href="https://www.recreation.gov/permits/{permit_id}" style="display: inline-block; background-color: #2c7744; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">View Permit</a></p>
+
+  <p>Happy Hiking! 🏔️</p>
+
+  <hr style="border: 1px solid #eee; margin: 20px 0;">
+  <p style="font-size: 12px; color: #666;">
+    <a href="https://www.kampscout.com/reservation-management">Manage your alerts</a>
+  </p>
+  <p style="font-size: 12px; color: #666;">
+    To stop receiving these alerts click <a href="{base_url}/api/permits/watches/disable/{watch_id}/{email_address}">here</a>
+  </p>
+</div>`,
+  },
+
+  permitAvailabilityFound: {
+    subject: "{permit_name} is Available for Your Dates! 🏔️",
+    body: `Great news! The wilderness permit you're watching is now available!
+
+Permit Details:
+- Permit: {permit_name}
+- Zone/Camp: {division_name}
+- Dates Available: {start_date} through {end_date}
+
+Book now at: https://www.recreation.gov/permits/{permit_id}/registration/detailed-availability
+
+Don't wait - available permits can be booked quickly!
+
+Happy Hiking! 🏔️
+
+---
+Manage your alerts: https://www.kampscout.com/reservation-management
+To stop receiving these alerts, visit: {base_url}/api/permits/watches/disable/{watch_id}/{email_address}`,
+    html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <h2>Great news! The wilderness permit you're watching is now available!</h2>
+
+  <div style="margin: 20px 0;">
+    <strong>Permit Details:</strong>
+    <ul>
+      <li>Permit: {permit_name}</li>
+      <li>Zone/Camp: {division_name}</li>
+      <li>Dates Available: {start_date} through {end_date}</li>
+    </ul>
+  </div>
+
+  <p><a href="https://www.recreation.gov/permits/{permit_id}/registration/detailed-availability" style="display: inline-block; background-color: #2c7744; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Book Now</a></p>
+
+  <p>Don't wait - available permits can be booked quickly!</p>
+
+  <p>Happy Hiking! 🏔️</p>
+
+  <hr style="border: 1px solid #eee; margin: 20px 0;">
+  <p style="font-size: 12px; color: #666;">
+    <a href="https://www.kampscout.com/reservation-management">Manage your alerts</a>
+  </p>
+  <p style="font-size: 12px; color: #666;">
+    To stop receiving these alerts click <a href="{base_url}/api/permits/watches/disable/{watch_id}/{email_address}">here</a>
+  </p>
+</div>`,
+  },
 };
 
 // Add HTML templates for web responses
@@ -209,6 +301,8 @@ module.exports = {
   confirmation: notificationsTemplate.confirmation,
   availabilityFound: notificationsTemplate.success,
   bulkConfirmation: notificationsTemplate.bulkConfirmation,
+  permitConfirmation: notificationsTemplate.permitConfirmation,
+  permitAvailabilityFound: notificationsTemplate.permitAvailabilityFound,
   htmlTemplates,
   formatTemplate,
 };
