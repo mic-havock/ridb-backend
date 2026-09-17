@@ -9,21 +9,21 @@ const db = new Database(dbPath, { verbose: console.log });
 console.log(`Initializing database at: ${path.resolve(dbPath)}`);
 
 try {
-  // Create the table
+  // Create the permit_watches table
   const createTableQuery = `
-    CREATE TABLE IF NOT EXISTS reservations (
+    CREATE TABLE IF NOT EXISTS permit_watches (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       email_address TEXT NOT NULL,
-      campsite_id TEXT NOT NULL,
-      campsite_name TEXT NOT NULL,
-      facility_id TEXT NOT NULL,
-      campsite_number TEXT NOT NULL,
-      reservation_start_date DATE NOT NULL,
-      reservation_end_date DATE NOT NULL,
-      monitoring_active BOOLEAN NOT NULL DEFAULT 0,
+      permit_id TEXT NOT NULL,
+      permit_name TEXT NOT NULL,
+      division_ids TEXT NOT NULL,
+      start_date DATE NOT NULL,
+      end_date DATE NOT NULL,
+      group_size INTEGER,
+      monitoring_active BOOLEAN NOT NULL DEFAULT 1,
       attempts_made INTEGER NOT NULL DEFAULT 0,
-      success_sent BOOLEAN NOT NULL DEFAULT 0,
+      success_sent INTEGER NOT NULL DEFAULT 0,
       last_success_sent_at DATETIME,
       user_deleted BOOLEAN NOT NULL DEFAULT 0,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -32,10 +32,10 @@ try {
   `;
 
   db.exec(createTableQuery);
-  console.log('Table "reservations" created successfully.');
+  console.log('Table "permit_watches" created successfully.');
   console.log(`Database location: ${path.resolve(dbPath)}`);
 } catch (err) {
-  console.error("Error creating table:", err.message);
+  console.error("Error creating permit_watches table:", err.message);
 } finally {
   // Close the database connection
   db.close();

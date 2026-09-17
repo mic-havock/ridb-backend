@@ -1,5 +1,6 @@
 require("dotenv").config(); // Load environment variables
 const sqlite3 = require("better-sqlite3"); // Use better-sqlite3 for improved performance
+const { getDatabasePath } = require("../db/config.js");
 const {
   checkCampsiteAvailability,
   fetchCampgroundMonthAvailability,
@@ -7,9 +8,10 @@ const {
 } = require("../routes/campsites.js"); // Import availability check function
 const { sendEmailNotification } = require("../notifications/emails.js"); // Import the sendEmailNotification function
 const notificationsTemplates = require("../notifications/notificationsTemplate.js");
+const { monitorPermitWatches } = require("./permitMonitor.js"); // Import permit monitoring
 
 // Path to your database
-const db = sqlite3("./reservations.db");
+const db = sqlite3(getDatabasePath());
 
 /**
  * @param {string} dateStr - YYYY-MM-DD
@@ -388,6 +390,8 @@ const processBatches = async (array, batchSize, delayMs, processFn) => {
 // Monitoring Logic
 const monitorReservations = async () => {
   const startTime = Date.now();
+  let results = [];
+  
   try {
     const monitoringIntervalMinutes = parseInt(
       process.env.MONITOR_INTERVAL_MINUTES || "10",
@@ -407,103 +411,116 @@ const monitorReservations = async () => {
 
     if (rows.length === 0) {
       console.log("No active reservations to monitor.");
-      return;
-    }
+    } else {
+      console.log(`\n=== Starting Campsite Monitoring Cycle ===`);
+      console.log(`Processing ${rows.length} reservations`);
 
-    console.log(`\n=== Starting Monitoring Cycle ===`);
-    console.log(`Processing ${rows.length} reservations`);
+      let filteredRows = rows;
 
-    let filteredRows = rows;
+      const facilityGroups = groupReservationsByFacility(filteredRows);
+      console.log(`\n=== Grouping Results ===`);
+      console.log(`Total facility groups: ${facilityGroups.size}`);
 
-    const facilityGroups = groupReservationsByFacility(filteredRows);
-    console.log(`\n=== Grouping Results ===`);
-    console.log(`Total facility groups: ${facilityGroups.size}`);
+      const multiReservationFacilities = new Map(
+        Array.from(facilityGroups.entries()).filter(
+          ([_, facilityRows]) => facilityRows.length > 1
+        )
+      );
 
-    const multiReservationFacilities = new Map(
-      Array.from(facilityGroups.entries()).filter(
-        ([_, facilityRows]) => facilityRows.length > 1
-      )
-    );
+      console.log(
+        `Facilities with multiple reservations: ${
+          multiReservationFacilities.size
+        }, single reservations: ${
+          facilityGroups.size - multiReservationFacilities.size
+        }`
+      );
 
-    console.log(
-      `Facilities with multiple reservations: ${
-        multiReservationFacilities.size
-      }, single reservations: ${
-        facilityGroups.size - multiReservationFacilities.size
-      }`
-    );
+      const processedFacilityRowIds = new Set();
 
-    const processedFacilityRowIds = new Set();
-
-    for (const [facilityId, facilityRows] of multiReservationFacilities.entries()) {
-      try {
-        const months = getUniqueMonthsForReservations(facilityRows);
-        console.log(
-          `\nProcessing facility ${facilityId} - ${facilityRows.length} reservations across ${months.length} month(s)`
-        );
-
+      for (const [facilityId, facilityRows] of multiReservationFacilities.entries()) {
         try {
-          const monthDataMap = await fetchFacilityMonthData(facilityId, months);
+          const months = getUniqueMonthsForReservations(facilityRows);
           console.log(
-            `Fetched ${monthDataMap.size} month(s) of availability for facility ${facilityId}`
+            `\nProcessing facility ${facilityId} - ${facilityRows.length} reservations across ${months.length} month(s)`
           );
 
-          for (const row of facilityRows) {
-            try {
-              await processFacilityReservation(row, monthDataMap);
-              processedFacilityRowIds.add(row.id);
-            } catch (error) {
-              console.error(
-                `Error processing reservation ${row.id} in facility ${facilityId}:`,
-                error.message
-              );
+          try {
+            const monthDataMap = await fetchFacilityMonthData(facilityId, months);
+            console.log(
+              `Fetched ${monthDataMap.size} month(s) of availability for facility ${facilityId}`
+            );
+
+            for (const row of facilityRows) {
+              try {
+                await processFacilityReservation(row, monthDataMap);
+                processedFacilityRowIds.add(row.id);
+              } catch (error) {
+                console.error(
+                  `Error processing reservation ${row.id} in facility ${facilityId}:`,
+                  error.message
+                );
+              }
             }
+          } catch (error) {
+            const status = error.response ? error.response.status : null;
+            if (await handleRateLimitError(status)) {
+              return monitorReservations();
+            }
+            throw error;
           }
         } catch (error) {
-          const status = error.response ? error.response.status : null;
-          if (await handleRateLimitError(status)) {
-            return monitorReservations();
-          }
-          throw error;
+          console.error(
+            `Error processing facility ${facilityId}:`,
+            error.message
+          );
         }
-      } catch (error) {
-        console.error(
-          `Error processing facility ${facilityId}:`,
-          error.message
-        );
       }
+
+      filteredRows = filteredRows.filter(
+        (row) => !processedFacilityRowIds.has(row.id)
+      );
+
+      const batchSize = parseInt(process.env.MONITOR_BATCH_SIZE || "10", 10);
+      const batchDelayMs = parseInt(
+        process.env.MONITOR_BATCH_DELAY_MS || "2000",
+        10
+      );
+
+      console.log(
+        `Processing ${filteredRows.length} single reservations in batches of ${batchSize}`
+      );
+
+      // Process records in batches with delay between batches
+      results = await processBatches(
+        filteredRows,
+        batchSize,
+        batchDelayMs,
+        processBatch
+      );
+
+      console.log("Campsite monitoring cycle complete", {
+        processedSingleReservations: filteredRows.length,
+        processedFacilityReservations: Array.from(
+          multiReservationFacilities.values()
+        ).reduce((sum, facilityRows) => sum + facilityRows.length, 0),
+        durationSeconds: ((Date.now() - startTime) / 1000).toFixed(2),
+        timestamp: new Date().toISOString(),
+      });
     }
 
-    filteredRows = filteredRows.filter(
-      (row) => !processedFacilityRowIds.has(row.id)
-    );
+    // Now monitor permit watches (isolated from campsite monitoring)
+    try {
+      await monitorPermitWatches();
+    } catch (permitError) {
+      console.error("Error during permit watch monitoring:", permitError.message);
+      console.error("Permit monitoring failed but campsite monitoring completed successfully.");
+    }
 
-    const batchSize = parseInt(process.env.MONITOR_BATCH_SIZE || "10", 10);
-    const batchDelayMs = parseInt(
-      process.env.MONITOR_BATCH_DELAY_MS || "2000",
-      10
-    );
-
-    console.log(
-      `Processing ${filteredRows.length} single reservations in batches of ${batchSize}`
-    );
-
-    // Process records in batches with delay between batches
-    const results = await processBatches(
-      filteredRows,
-      batchSize,
-      batchDelayMs,
-      processBatch
-    );
-
-    console.log("Monitoring cycle complete", {
-      processedSingleReservations: filteredRows.length,
-      processedFacilityReservations: Array.from(
-        multiReservationFacilities.values()
-      ).reduce((sum, facilityRows) => sum + facilityRows.length, 0),
-      durationSeconds: ((Date.now() - startTime) / 1000).toFixed(2),
+    console.log("=== Complete Monitoring Cycle Finished ===", {
+      totalDurationSeconds: ((Date.now() - startTime) / 1000).toFixed(2),
       timestamp: new Date().toISOString(),
     });
+
     return results;
   } catch (error) {
     const now = new Date().toISOString();

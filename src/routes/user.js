@@ -2,9 +2,10 @@ require("dotenv").config(); // Load environment variables
 
 const express = require("express");
 const router = express.Router();
+const { getDatabasePath } = require("../db/config");
 
 // Create database connection
-const db = require("better-sqlite3")("./reservations.db");
+const db = require("better-sqlite3")(getDatabasePath());
 
 const { body, query, validationResult } = require("express-validator");
 
