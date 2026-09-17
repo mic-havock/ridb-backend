@@ -254,10 +254,10 @@ router.get(
         });
       }
 
-      // Update database to stop monitoring only if ID and email match
+      // Update database to soft-delete the watch only if ID and email match
       const result = db
         .prepare(
-          "UPDATE permit_watches SET monitoring_active = 0 WHERE id = ? AND email_address = ?"
+          "UPDATE permit_watches SET user_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND email_address = ?"
         )
         .run(id, decodeURIComponent(email));
 
