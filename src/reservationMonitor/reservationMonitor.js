@@ -390,6 +390,8 @@ const processBatches = async (array, batchSize, delayMs, processFn) => {
 // Monitoring Logic
 const monitorReservations = async () => {
   const startTime = Date.now();
+  let results = [];
+  
   try {
     const monitoringIntervalMinutes = parseInt(
       process.env.MONITOR_INTERVAL_MINUTES || "10",
@@ -407,105 +409,103 @@ const monitorReservations = async () => {
       )
       .all();
 
-    let results = [];
-
     if (rows.length === 0) {
       console.log("No active reservations to monitor.");
     } else {
       console.log(`\n=== Starting Campsite Monitoring Cycle ===`);
       console.log(`Processing ${rows.length} reservations`);
 
-    let filteredRows = rows;
+      let filteredRows = rows;
 
-    const facilityGroups = groupReservationsByFacility(filteredRows);
-    console.log(`\n=== Grouping Results ===`);
-    console.log(`Total facility groups: ${facilityGroups.size}`);
+      const facilityGroups = groupReservationsByFacility(filteredRows);
+      console.log(`\n=== Grouping Results ===`);
+      console.log(`Total facility groups: ${facilityGroups.size}`);
 
-    const multiReservationFacilities = new Map(
-      Array.from(facilityGroups.entries()).filter(
-        ([_, facilityRows]) => facilityRows.length > 1
-      )
-    );
+      const multiReservationFacilities = new Map(
+        Array.from(facilityGroups.entries()).filter(
+          ([_, facilityRows]) => facilityRows.length > 1
+        )
+      );
 
-    console.log(
-      `Facilities with multiple reservations: ${
-        multiReservationFacilities.size
-      }, single reservations: ${
-        facilityGroups.size - multiReservationFacilities.size
-      }`
-    );
+      console.log(
+        `Facilities with multiple reservations: ${
+          multiReservationFacilities.size
+        }, single reservations: ${
+          facilityGroups.size - multiReservationFacilities.size
+        }`
+      );
 
-    const processedFacilityRowIds = new Set();
+      const processedFacilityRowIds = new Set();
 
-    for (const [facilityId, facilityRows] of multiReservationFacilities.entries()) {
-      try {
-        const months = getUniqueMonthsForReservations(facilityRows);
-        console.log(
-          `\nProcessing facility ${facilityId} - ${facilityRows.length} reservations across ${months.length} month(s)`
-        );
-
+      for (const [facilityId, facilityRows] of multiReservationFacilities.entries()) {
         try {
-          const monthDataMap = await fetchFacilityMonthData(facilityId, months);
+          const months = getUniqueMonthsForReservations(facilityRows);
           console.log(
-            `Fetched ${monthDataMap.size} month(s) of availability for facility ${facilityId}`
+            `\nProcessing facility ${facilityId} - ${facilityRows.length} reservations across ${months.length} month(s)`
           );
 
-          for (const row of facilityRows) {
-            try {
-              await processFacilityReservation(row, monthDataMap);
-              processedFacilityRowIds.add(row.id);
-            } catch (error) {
-              console.error(
-                `Error processing reservation ${row.id} in facility ${facilityId}:`,
-                error.message
-              );
+          try {
+            const monthDataMap = await fetchFacilityMonthData(facilityId, months);
+            console.log(
+              `Fetched ${monthDataMap.size} month(s) of availability for facility ${facilityId}`
+            );
+
+            for (const row of facilityRows) {
+              try {
+                await processFacilityReservation(row, monthDataMap);
+                processedFacilityRowIds.add(row.id);
+              } catch (error) {
+                console.error(
+                  `Error processing reservation ${row.id} in facility ${facilityId}:`,
+                  error.message
+                );
+              }
             }
+          } catch (error) {
+            const status = error.response ? error.response.status : null;
+            if (await handleRateLimitError(status)) {
+              return monitorReservations();
+            }
+            throw error;
           }
         } catch (error) {
-          const status = error.response ? error.response.status : null;
-          if (await handleRateLimitError(status)) {
-            return monitorReservations();
-          }
-          throw error;
+          console.error(
+            `Error processing facility ${facilityId}:`,
+            error.message
+          );
         }
-      } catch (error) {
-        console.error(
-          `Error processing facility ${facilityId}:`,
-          error.message
-        );
       }
-    }
 
-    filteredRows = filteredRows.filter(
-      (row) => !processedFacilityRowIds.has(row.id)
-    );
+      filteredRows = filteredRows.filter(
+        (row) => !processedFacilityRowIds.has(row.id)
+      );
 
-    const batchSize = parseInt(process.env.MONITOR_BATCH_SIZE || "10", 10);
-    const batchDelayMs = parseInt(
-      process.env.MONITOR_BATCH_DELAY_MS || "2000",
-      10
-    );
+      const batchSize = parseInt(process.env.MONITOR_BATCH_SIZE || "10", 10);
+      const batchDelayMs = parseInt(
+        process.env.MONITOR_BATCH_DELAY_MS || "2000",
+        10
+      );
 
-    console.log(
-      `Processing ${filteredRows.length} single reservations in batches of ${batchSize}`
-    );
+      console.log(
+        `Processing ${filteredRows.length} single reservations in batches of ${batchSize}`
+      );
 
-    // Process records in batches with delay between batches
-    results = await processBatches(
-      filteredRows,
-      batchSize,
-      batchDelayMs,
-      processBatch
-    );
+      // Process records in batches with delay between batches
+      results = await processBatches(
+        filteredRows,
+        batchSize,
+        batchDelayMs,
+        processBatch
+      );
 
-    console.log("Campsite monitoring cycle complete", {
-      processedSingleReservations: filteredRows.length,
-      processedFacilityReservations: Array.from(
-        multiReservationFacilities.values()
-      ).reduce((sum, facilityRows) => sum + facilityRows.length, 0),
-      durationSeconds: ((Date.now() - startTime) / 1000).toFixed(2),
-      timestamp: new Date().toISOString(),
-    });
+      console.log("Campsite monitoring cycle complete", {
+        processedSingleReservations: filteredRows.length,
+        processedFacilityReservations: Array.from(
+          multiReservationFacilities.values()
+        ).reduce((sum, facilityRows) => sum + facilityRows.length, 0),
+        durationSeconds: ((Date.now() - startTime) / 1000).toFixed(2),
+        timestamp: new Date().toISOString(),
+      });
     }
 
     // Now monitor permit watches
