@@ -508,8 +508,13 @@ const monitorReservations = async () => {
       });
     }
 
-    // Now monitor permit watches
-    await monitorPermitWatches();
+    // Now monitor permit watches (isolated from campsite monitoring)
+    try {
+      await monitorPermitWatches();
+    } catch (permitError) {
+      console.error("Error during permit watch monitoring:", permitError.message);
+      console.error("Permit monitoring failed but campsite monitoring completed successfully.");
+    }
 
     console.log("=== Complete Monitoring Cycle Finished ===", {
       totalDurationSeconds: ((Date.now() - startTime) / 1000).toFixed(2),
