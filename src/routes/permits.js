@@ -1,7 +1,8 @@
 const express = require("express");
 const axios = require("axios");
 const router = express.Router();
-const db = require("better-sqlite3")("./reservations.db");
+const { getDatabasePath } = require("../db/config");
+const db = require("better-sqlite3")(getDatabasePath());
 const notificationsTemplate = require("../notifications/notificationsTemplate");
 const { sendEmailNotification } = require("../notifications/emails");
 const { body, param, query, validationResult } = require("express-validator");

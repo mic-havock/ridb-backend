@@ -1,11 +1,12 @@
 require("dotenv").config();
 const axios = require("axios");
 const sqlite3 = require("better-sqlite3");
+const { getDatabasePath } = require("../db/config.js");
 const { sendEmailNotification } = require("../notifications/emails.js");
 const notificationsTemplates = require("../notifications/notificationsTemplate.js");
 
 // Path to your database
-const db = sqlite3("./reservations.db");
+const db = sqlite3(getDatabasePath());
 
 /**
  * User-Agent and Accept headers for Recreation.gov API calls

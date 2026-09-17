@@ -1,7 +1,11 @@
 const Database = require("better-sqlite3");
+const path = require("path");
 
-// Open the database
-const db = new Database("./reservations.db", { verbose: console.log });
+// Open the database using absolute path relative to repo root
+const dbPath = path.join(__dirname, "..", "reservations.db");
+const db = new Database(dbPath, { verbose: console.log });
+
+console.log(`Using database at: ${path.resolve(dbPath)}`);
 
 try {
   // Prepare the insert statement

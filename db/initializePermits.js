@@ -1,7 +1,11 @@
 const Database = require("better-sqlite3");
+const path = require("path");
 
-// Open or create the database
-const db = new Database("./reservations.db", { verbose: console.log });
+// Open or create the database using absolute path relative to repo root
+const dbPath = path.join(__dirname, "..", "reservations.db");
+const db = new Database(dbPath, { verbose: console.log });
+
+console.log(`Initializing database at: ${path.resolve(dbPath)}`);
 
 try {
   // Create the permit_watches table
@@ -28,6 +32,7 @@ try {
 
   db.exec(createTableQuery);
   console.log('Table "permit_watches" created successfully.');
+  console.log(`Database location: ${path.resolve(dbPath)}`);
 } catch (err) {
   console.error("Error creating permit_watches table:", err.message);
 } finally {

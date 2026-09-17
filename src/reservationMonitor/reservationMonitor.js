@@ -1,5 +1,6 @@
 require("dotenv").config(); // Load environment variables
 const sqlite3 = require("better-sqlite3"); // Use better-sqlite3 for improved performance
+const { getDatabasePath } = require("../db/config.js");
 const {
   checkCampsiteAvailability,
   fetchCampgroundMonthAvailability,
@@ -10,7 +11,7 @@ const notificationsTemplates = require("../notifications/notificationsTemplate.j
 const { monitorPermitWatches } = require("./permitMonitor.js"); // Import permit monitoring
 
 // Path to your database
-const db = sqlite3("./reservations.db");
+const db = sqlite3(getDatabasePath());
 
 /**
  * @param {string} dateStr - YYYY-MM-DD
@@ -406,6 +407,8 @@ const monitorReservations = async () => {
       )
       .all();
 
+    let results = [];
+
     if (rows.length === 0) {
       console.log("No active reservations to monitor.");
     } else {
@@ -488,7 +491,7 @@ const monitorReservations = async () => {
     );
 
     // Process records in batches with delay between batches
-    const results = await processBatches(
+    results = await processBatches(
       filteredRows,
       batchSize,
       batchDelayMs,
