@@ -1,8 +1,9 @@
 const Database = require("better-sqlite3");
 const path = require("path");
+const { getDatabasePath } = require("../src/db/config");
 
-// Open or create the database using absolute path relative to repo root
-const dbPath = path.join(__dirname, "..", "reservations.db");
+// Open or create the database using shared config helper
+const dbPath = getDatabasePath();
 const db = new Database(dbPath, { verbose: console.log });
 
 console.log(`Initializing database at: ${path.resolve(dbPath)}`);
