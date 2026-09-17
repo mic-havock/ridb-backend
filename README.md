@@ -27,10 +27,12 @@ pnpm install
 # Build native modules
 npm rebuild better-sqlite3 --build-from-source
 
-# Initialize databases
+# Initialize databases (creates reservations.db at repo root)
 node db/initialize.js        # Campsite reservations
 node db/initializePermits.js # Wilderness permits
 ```
+
+**Note:** Database initialization scripts use absolute paths and will always create `reservations.db` at the repository root, regardless of your current working directory.
 
 ### Configuration
 

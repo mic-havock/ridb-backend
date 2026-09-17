@@ -332,6 +332,8 @@ No new environment variables required. Reuses existing configuration:
 ## Deployment Checklist
 
 1. Run `node db/initializePermits.js` to create the `permit_watches` table
+   - Script uses absolute paths and creates database at repo root regardless of CWD
+   - Will log the absolute path of the database file
 2. Verify existing campsite monitoring still works
 3. Test permit endpoints with curl/Postman
 4. Configure email settings (already done for campsite alerts)

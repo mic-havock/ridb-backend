@@ -1,5 +1,20 @@
 # Testing Guide: Wilderness Permit Monitoring
 
+## Prerequisites
+
+Before running tests, ensure the database is initialized:
+
+```bash
+# Initialize both tables (creates reservations.db at repo root)
+node db/initialize.js
+node db/initializePermits.js
+
+# Verify database location
+ls -la reservations.db  # Should be at repo root
+```
+
+**Note:** The initialization scripts use absolute paths and will always create `reservations.db` at the repository root, regardless of your current working directory. The scripts log the absolute database path when run.
+
 ## Quick Verification Checklist
 
 ### 1. Database Setup ✓
